@@ -1,0 +1,12 @@
+next-version: 1.0.0
+mode: ContinuousDelivery
+branches:
+  main:
+    increment: Patch
+    label: ''
+  feature:
+    increment: Minor
+    label: alpha
+  pull-request:
+    increment: Patch
+    label: pr

@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET SDK from global.json
         uses: actions/setup-dotnet@v4
@@ -47,4 +49,8 @@ jobs:
 
       - name: Push NuGet package to org feed
         if: github.event_name != 'pull_request'
-        run: dotnet nuget push artifacts/nuget/*.nupkg --skip-duplicate
+        run: |
+          dotnet nuget push artifacts/nuget/*.nupkg \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --skip-duplicate

@@ -1,0 +1,19 @@
+{
+  "servers": {
+    "fx2dotnet": {
+      "type": "stdio",
+      "command": "dnx",
+      "args": [
+        "Swick.Mcp.Fx2dotnet",
+        "--yes",
+        "--add-source",
+        "https://nuget.pkg.github.com/twsouthwick/index.json"
+      ]
+    },
+    "Microsoft.GitHubCopilot.AppModernization.Mcp": {
+      "type": "stdio",
+      "command": "dnx",
+      "args": ["Microsoft.GitHubCopilot.AppModernization.Mcp@1.0.903-preview1", "--yes"]
+    }
+  }
+}

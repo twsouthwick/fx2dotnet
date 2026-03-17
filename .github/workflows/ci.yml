@@ -39,7 +39,7 @@ jobs:
         run: dotnet build fx2dotnet.slnx --configuration Release --no-restore
 
       - name: Pack NuGet package
-        run: dotnet pack src/fx2dotnet/fx2dotnet.csproj --configuration Release --no-build --output artifacts/nuget
+        run: dotnet pack src/fx2dotnet/fx2dotnet.csproj --configuration Release --no-restore --output artifacts/nuget
 
       - name: Upload NuGet package artifact
         uses: actions/upload-artifact@v4

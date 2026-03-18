@@ -9,20 +9,22 @@
         "--source",
         "https://api.nuget.org/v3/index.json"
       ],
-      "tools":
-      [
+      "tools": [
         "convert_project_to_sdk_style",
         "get_projects_in_topological_order"
       ]
     },
-    "NuGetVersions":{
+    "NuGetVersions": {
       "type": "stdio",
       "command": "dnx",
-      "args": ["run", "${CLAUDE_PLUGIN_ROOT}/servers/nugetversions/app.cs"],
-      "tools":
-      [
+      "args": [
+        "run",
+        "${CLAUDE_PLUGIN_ROOT}/servers/nugetversions/app.cs",
+        "--yes"
+      ],
+      "tools": [
         "*"
       ]
     }
-  }  
+  }
 }

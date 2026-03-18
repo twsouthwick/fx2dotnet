@@ -5,6 +5,7 @@ argument-hint: "Specify the .sln path and target framework (for example: net10.0
 target: vscode
 tools: ['search', 'read', 'edit', 'execute', 'todo', 'vscode/memory', 'vscode/askQuestions', 'agent']
 agents: ['Build Fix', 'Plan']
+user-invocable: false
 handoffs:
   - label: Commit Changes
     agent: agent

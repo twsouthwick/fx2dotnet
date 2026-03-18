@@ -3,6 +3,7 @@ name: Build Fix
 description: Runs a dotnet build/fix loop — builds the project, diagnoses errors, and applies minimal fixes iteratively until the build succeeds.
 argument-hint: Specify the .sln, .csproj, .vbproj, or .fsproj file to build
 target: vscode
+user-invocable: false
 tools: ['search', 'read', 'edit', 'execute', 'todo', 'vscode/memory', 'vscode/askQuestions', 'agent']
 agents: ['Explore']
 handoffs:

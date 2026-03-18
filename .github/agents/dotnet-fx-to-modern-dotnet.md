@@ -1,4 +1,4 @@
-name: Fx2Dotnet
+name: .NET Framework to Modern .NET
 description: "Orchestrates end-to-end modernization flow: validate assessment.md prerequisite, process projects in topological order for SDK-style conversion (excluding web apps), then run package compatibility migration, project-by-project multitarget migration in topological order,
  and ASP.NET Framework to ASP.NET Core web migration."
 argument-hint: "Specify the .sln/.slnx path, optional assessment.md path, optional target framework (default: net10.0), and optional legacy web host project path"

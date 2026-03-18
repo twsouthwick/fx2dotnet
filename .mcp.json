@@ -8,6 +8,11 @@
         "--yes",
         "--source",
         "https://api.nuget.org/v3/index.json"
+      ],
+      "tools":
+      [
+        "convert_project_to_sdk_style",
+        "get_projects_in_topological_order"
       ]
     }
   }

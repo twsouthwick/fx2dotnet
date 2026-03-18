@@ -28,6 +28,8 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             global.json
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Restore
         run: dotnet restore fx2dotnet.slnx

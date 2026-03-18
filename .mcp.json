@@ -19,9 +19,10 @@
       "command": "dotnet",
       "args": [
         "run",
-        "'${CLAUDE_PLUGIN_ROOT}/servers/nugetversions/app.cs'",
+        "servers/nugetversions/app.cs",
         "--yes"
       ],
+      "cwd": "${CLAUDE_PLUGIN_ROOT}",
       "tools": [
         "*"
       ]

@@ -5,5 +5,5 @@
   "description": "Agent plugin for .NET modernization workflows, including orchestrator and migration helpers.",
   "publisher": "local",
   "agents": ".github/agents/",
-  "mcpServers": "mcp.json"
+  "mcpServers": ".mcp.json"
 }

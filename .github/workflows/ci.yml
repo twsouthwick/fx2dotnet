@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
 
     steps:
       - name: Checkout
@@ -29,8 +28,6 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             global.json
-        env:
-          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Restore
         run: dotnet restore fx2dotnet.slnx

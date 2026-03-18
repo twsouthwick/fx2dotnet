@@ -22,14 +22,10 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <PackageId>Swick.Mcp.Fx2dotnet</PackageId>
+    <PackageId>Swick.Mcp.NuGetVersions</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GitVersion.MsBuild" Version="6.4.0">
-      <PrivateAssets>All</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.4" />
     <PackageReference Include="ModelContextProtocol" Version="1.1.0" />
     <PackageReference Include="NuGet.Frameworks" Version="6.14.0" />

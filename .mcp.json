@@ -16,10 +16,12 @@
     },
     "NuGetVersions": {
       "type": "stdio",
-      "command": "dotnet",
+      "command": "dnx",
       "args": [
-        "run",
-        "${CLAUDE_PLUGIN_ROOT}/servers/nugetversions/app.cs"
+        "Swick.Mcp.NuGetVersions@0.1.0-beta",
+        "--yes",
+        "--source",
+        "https://api.nuget.org/v3/index.json"
       ],
       "tools": [
         "*"

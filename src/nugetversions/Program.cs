@@ -1,12 +1,5 @@
-#:sdk Microsoft.NET.Sdk
 
-#:property TargetFramework=net10.0
-#:property PublishAot=false
 
-#:package Microsoft.Extensions.Hosting@10.0.4
-#:package ModelContextProtocol@1.1.0
-#:package NuGet.Frameworks@6.14.0
-#:package NuGet.Protocol@6.14.0
 
 using System.ComponentModel;
 using System.Text.Json;

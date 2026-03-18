@@ -1,0 +1,48 @@
+name: CI NuGet Pack
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK from global.json
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          source-url: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            global.json
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore
+        run: dotnet restore fx2dotnet.slnx
+
+      - name: Build (Release)
+        run: dotnet build fx2dotnet.slnx --configuration Release --no-restore
+
+      - name: Pack NuGet package
+        run: dotnet pack src/fx2dotnet/fx2dotnet.csproj --configuration Release --no-restore --output artifacts/nuget
+
+      - name: Upload NuGet package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fx2dotnet-nuget
+          path: artifacts/nuget/*.nupkg

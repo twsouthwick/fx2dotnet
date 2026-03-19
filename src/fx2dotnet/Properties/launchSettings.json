@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "fx2dotnet": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\projects\\myassurance\\IAP.Server\\Petronas.Iap.sln\""
+    }
+  }
+}

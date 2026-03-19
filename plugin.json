@@ -1,9 +1,0 @@
-{
-  "name": "fx2dotnet-modernization",
-  "displayName": "fx2dotnet Modernization",
-  "version": "0.1.0",
-  "description": "Agent plugin for .NET modernization workflows, including orchestrator and migration helpers.",
-  "publisher": "local",
-  "agents": "agents/",
-  "mcpServers": ".mcp.json"
-}

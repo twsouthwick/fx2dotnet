@@ -127,7 +127,17 @@ Before delegating, update state file via the `edit` tool:
 After Build Fix completes (or user stops the build-fix loop):
 - Update state file via the `edit` tool with final `buildStatus`: "build-success" or "build-incomplete" or "user-stopped"
 - Log summary: which project was converted, what conversion involved, and the final build result
-- Present handoff for "Commit Changes" to allow user to review and commit the conversion
+
+### Completion Checkpoint
+
+If this agent was invoked as a subagent (by the orchestrator or another agent), skip this checkpoint — return results to the caller.
+
+If running standalone and files were modified, ask the user via `vscode/askQuestions`:
+- **Commit changes** — review and commit the conversion now
+- **Continue without committing** — keep changes in the working tree and end
+- **Let me review manually** — end so the user can inspect changes before deciding
+
+If the user chooses to commit, present the **Commit Changes** handoff.
 
 </workflow>
 

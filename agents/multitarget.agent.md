@@ -184,6 +184,17 @@ When build succeeds with 0 errors, report:
 - Files modified
 - Warnings and any skipped groups
 
+### Completion Checkpoint
+
+If this agent was invoked as a subagent (by the orchestrator or another agent), skip this checkpoint — return results to the caller.
+
+If running standalone and files were modified, ask the user via `vscode/askQuestions`:
+- **Commit changes** — review and commit the migration now
+- **Continue without committing** — keep changes in the working tree and end
+- **Let me review manually** — end so the user can inspect changes before deciding
+
+If the user chooses to commit, present the **Commit Changes** handoff.
+
 </workflow>
 
 <output_format>

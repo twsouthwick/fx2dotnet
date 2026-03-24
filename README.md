@@ -1,1 +1,271 @@
-<img width="4216" height="3311" alt="image" src="https://github.com/user-attachments/assets/98ec52bb-9f11-4d2c-9a09-f940d4b6ef62" />
+# fx2dotnet
+
+A GitHub Copilot agent plugin that guides developers through migrating .NET Framework applications to modern .NET (targeting .NET 10 by default).
+
+The goal is not to automate the migration — it's to **decompose it into small, reviewable chunks** that a developer can reason about and commit independently. The plugin identifies what needs to change, breaks the work into focused steps, and walks you through them one at a time. Each step produces a minimal, understandable diff rather than a sweeping transformation, so you stay in control and can validate every change before moving on.
+
+## Prerequisites
+
+- **VS Code** with [GitHub Copilot](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat) installed
+- **.NET SDK 10** (preview) — see `global.json` for the pinned version
+- **MCP servers** configured in `.mcp.json` (included in this repo) — VS Code starts them automatically
+
+## Quick Start
+
+1. Open your .NET Framework solution folder in VS Code alongside this plugin folder (multi-root workspace).
+2. In Copilot Chat, invoke the **`.NET Framework to Modern .NET`** agent with your solution path:
+
+   > @.NET Framework to Modern .NET `path/to/YourSolution.sln`
+
+3. The orchestrator runs Assessment → Planning first, then walks you through each migration phase. Every step produces a small, committable diff — review and commit as you go.
+
+To run a single phase instead of the full orchestration, invoke any agent directly (e.g., **`@Assessment of .NET Solution for Migration`**).
+
+## How It Works
+
+The plugin decomposes a .NET Framework → modern .NET migration into strictly ordered phases, each handled by a purpose-built agent:
+
+| Phase | Agent | What it does |
+|-------|-------|-------------|
+| 1. Assessment | **Assessment** | Classifies every project (web host, Windows Service, library, etc.), audits NuGet package compatibility, identifies blockers, and produces a baseline report. Uses **Project Type Detector** for per-project classification. |
+| 2. Planning | **Migration Planner** | Synthesizes assessment findings into a phased execution plan — topological project order, chunked package updates, SDK conversion candidates, and multitarget sequencing. Read-only; no code changes. |
+| 3. SDK Conversion | **SDK-Style Project Conversion** | Converts legacy `.csproj` files to SDK-style format in dependency order, invoking **Build Fix** after each conversion to validate. |
+| 4. Package Compatibility | **Package Compatibility Core** | Applies the planner's chunked NuGet update schedule (no-change → minor → major), with **Build Fix** validation after each chunk. |
+| 5. Multitargeting | **Multitarget Migration** | Adds the modern target framework (`net10.0`) alongside the existing one, fixing API incompatibilities before and after the `TargetFrameworks` switch. |
+| 6. Web Migration | **ASP.NET Framework → ASP.NET Core** | Creates a new ASP.NET Core host side-by-side, ports routes incrementally (using **Legacy Web Route Inventory** for endpoint discovery), and validates endpoint parity. |
+| 7. Deferred Work | — | Post-migration items: EF6 → EF Core upgrade, System.Web adapter removal, and other flagged tasks. |
+
+**Build Fix** runs an iterative build → diagnose → fix loop and is called throughout every phase to catch regressions early.
+
+## Migration Flow
+
+The diagram below maps the full end-to-end workflow across all phases. Each phase feeds into the next — from initial analysis through deferred post-migration work. Sub-steps are expanded within each phase to show the granular tasks. Green nodes are prep work, blue nodes are planning steps, and gold nodes are committable tasks that produce code changes.
+
+```mermaid
+flowchart TD
+    %% ── Main horizontal flow ──
+    A([Analysis]):::prep
+    B([Solution Planning]):::planning
+
+    A --> B
+
+    %% ── SDK-Style Conversion (Breadth First Post-Order with Build-Fix) ──
+    subgraph SDK ["Convert Projects to SDK-Style"]
+        direction LR
+        SDKP([Convert Projects to SDK-Style]):::planning
+        SDKP --> S1
+        S1[Convert Project 1]:::task --> S2[Convert Project 2]:::task --> SN[Convert Project N]:::task
+    end
+    B --> SDK
+
+    %% ── Shared topological-order annotation ──
+    TOPO[/"Topological order\n‹breadth-first post-order›"/]:::note
+    TOPO -.-> SDK
+    TOPO -.-> INPLACE
+
+    %% ── Package Update Plan (Breadth First Post-Order Traversal) ──
+    subgraph PKG ["Package Update Plan"]
+        direction LR
+        PKGP([Identify Package Update Plan]):::planning
+        PKGP --> P1
+        P1[Package 1]:::task --> P2[Package ...]:::task --> PN[Package N]:::task
+    end
+    SDK --> PKG
+
+    %% ── In-Place Upgrades per Project (Breadth First Post-Order Traversal) ──
+    subgraph INPLACE ["Multi-target Projects"]
+        direction LR
+
+        subgraph LIB1 ["Project 1"]
+            direction TB
+            L1P([Plan]):::planning
+            L1P --> L1PHASE1
+            subgraph L1PHASE1 ["Pre-multitarget: APIs that work on both"]
+                L1PRE1["Change API/Pattern 1"]:::task
+                L1PREN["Change API/Pattern N"]:::task
+                L1PRE1 --> L1PREN
+            end
+            L1PHASE1 --> L1MT[Multitarget]:::task
+            subgraph L1PHASE3 ["Post-multitarget: Remaining APIs"]
+                L1POST1["Change API/Pattern 1"]:::task
+                L1POSTN["Change API/Pattern N"]:::task
+                L1POST1 --> L1POSTN
+            end
+            L1MT --> L1PHASE3
+        end
+
+        subgraph LIB2 ["Project 2"]
+            direction TB
+            L2P([Plan]):::planning
+            L2P --> L2PHASE1
+            subgraph L2PHASE1 ["Pre-multitarget: APIs that work on both"]
+                L2PRE1["Change API/Pattern 1"]:::task
+                L2PREN["Change API/Pattern N"]:::task
+                L2PRE1 --> L2PREN
+            end
+            L2PHASE1 --> L2MT[Multitarget]:::task
+            subgraph L2PHASE3 ["Post-multitarget: Remaining APIs"]
+                L2POST1["Change API/Pattern 1"]:::task
+                L2POSTN["Change API/Pattern N"]:::task
+                L2POST1 --> L2POSTN
+            end
+            L2MT --> L2PHASE3
+        end
+
+        subgraph LIBN ["Project N"]
+            direction TB
+            LNP([Plan]):::planning
+            LNP --> LNPHASE1
+            subgraph LNPHASE1 ["Pre-multitarget: APIs that work on both"]
+                LNPRE1["Change API/Pattern 1"]:::task
+                LNPREN["Change API/Pattern N"]:::task
+                LNPRE1 --> LNPREN
+            end
+            LNPHASE1 --> LNMT[Multitarget]:::task
+            subgraph LNPHASE3 ["Post-multitarget: Remaining APIs"]
+                LNPOST1["Change API/Pattern 1"]:::task
+                LNPOSTN["Change API/Pattern N"]:::task
+                LNPOST1 --> LNPOSTN
+            end
+            LNMT --> LNPHASE3
+        end
+
+        LIB1 --> LIB2 --> LIBN
+    end
+    PKG --> INPLACE
+
+    %% ── Side-by-Side Web App Migration ──
+    subgraph MVC ["Plan Side-by-Side Upgrade for Web App"]
+        direction LR
+        MVCP([Plan Side-by-Side Upgrade]):::planning
+        MVCP --> M1
+        M1[Create new Project]:::task
+        subgraph STATIC ["Static Files & Bundling"]
+            direction TB
+            STP([Plan]):::planning
+            ST1[Migrate Static Assets]:::task
+            ST2[Migrate and configure CSS / TypeScript / JavaScript Bundling]:::task
+            STP --> ST1 --> ST2
+        end
+        subgraph MXCUT ["Cross-Cutting Concerns"]
+            direction TB
+            MCC1[Logging]:::task
+            MCC2[Configuration]:::task
+            MCC3[Dependency Injection]:::task
+            MCC4[Authentication]:::task
+            MCC5[Authorization]:::task
+            MCC6[Other]:::task
+            MCC1 ~~~ MCC2
+            MCC3 ~~~ MCC4
+            MCC5 ~~~ MCC6
+            MCC1 ~~~ MCC3 ~~~ MCC5
+        end
+        subgraph MART ["Migrate Routes"]
+            direction LR
+            subgraph MART1 ["Route 1"]
+                direction TB
+                MA1[Models / Views / Controllers]:::task
+                MA1D[Dependencies]:::task
+                MA1 --> MA1D
+            end
+            subgraph MART2 ["Route 2"]
+                direction TB
+                MA2[Models / Views / Controllers]:::task
+                MA2D[Dependencies]:::task
+                MA2 --> MA2D
+            end
+            subgraph MARTN ["Route N"]
+                direction TB
+                MAN[Models / Views / Controllers]:::task
+                MAND[Dependencies]:::task
+                MAN --> MAND
+            end
+            MART1 --> MART2 --> MARTN
+        end
+        M1 --> STATIC --> MXCUT --> MART
+    end
+    INPLACE --> MVC
+    MVC --> DEFERRED
+
+    %% ── Deferred Work ──
+    subgraph DEFERRED ["Deferred Work"]
+        direction TB
+        G([Deferred Work Review and Final Validation]):::planning
+        DW1[Upgrade EF6 → EF Core]:::task
+        DW2[Remove System.Web Adapters]:::task
+        DW3[Other Deferred Items]:::task
+        G --> DW1
+        G --> DW2
+        G --> DW3
+    end
+
+    %% ── Styles ──
+    classDef prep fill:#90EE90,stroke:#333,color:#000
+    classDef planning fill:#87CEEB,stroke:#333,color:#000
+    classDef task fill:#FFD700,stroke:#333,color:#000
+    classDef note fill:#FFF,stroke:#999,stroke-dasharray:5 5,color:#555
+
+    %% ── Legend ──
+    subgraph Legend
+        direction LR
+        LEG1([Prep Work]):::prep
+        LEG2([High-Level Planning]):::planning
+        LEG3[Committable Task]:::task
+    end
+```
+
+## Breadth-First Post-Order Traversal
+
+Phases 3–5 (SDK conversion, package updates, and multitargeting) all process projects in **breadth-first post-order** — leaves first, then their dependents — so that every project's dependencies are already migrated before it is touched. The diagrams below illustrate this with a hypothetical solution dependency graph.
+
+**Dependency Graph:**
+
+```mermaid
+flowchart BT
+    WebApp([WebApp\n‹MVC App›])
+    Services([Services])
+    Data([Data])
+    Auth([Auth])
+    Common([Common])
+    Logging([Logging])
+
+    Common --> Data
+    Common --> Auth
+    Logging --> Services
+    Data --> Services
+    Auth --> Services
+    Services --> WebApp
+```
+
+**Processing Order (breadth-first post-order):**
+
+```mermaid
+flowchart LR
+    step1["① Common"]:::leaf
+    step2["② Logging"]:::leaf
+    step3["③ Data"]:::mid
+    step4["④ Auth"]:::mid
+    step5["⑤ Services"]:::mid
+    step6["⑥ WebApp"]:::root
+
+    step1 --> step2 --> step3 --> step4 --> step5 --> step6
+
+    classDef leaf fill:#90EE90,stroke:#333,color:#000
+    classDef mid fill:#FFD700,stroke:#333,color:#000
+    classDef root fill:#87CEEB,stroke:#333,color:#000
+```
+
+## Architecture
+
+### Skills (Domain Policies)
+
+Skills encode migration best practices that override default agent behavior in specific domains:
+
+- **EF6 Migration Policy** — Retain Entity Framework 6 during the framework migration; upgrade to EF Core only as a separate post-migration effort.
+- **System.Web Adapters** — Use `Microsoft.AspNetCore.SystemWebAdapters` to minimize code changes for `System.Web` types; rewrite to native ASP.NET Core APIs post-migration.
+- **Windows Service Migration** — Replace `ServiceBase` with `BackgroundService` + Generic Host using `Microsoft.Extensions.Hosting.WindowsServices`.
+
+### MCP Tool Servers
+
+- **Microsoft.GitHubCopilot.AppModernization.MCP** — Project analysis, SDK-style conversion, build tooling.
+- **Swick.Mcp.NuGetVersions** — Discovers minimum NuGet package versions needed for a target framework, resolves feeds, and reports legacy packaging patterns.

@@ -1,6 +1,6 @@
 ---
 name: .NET Framework to Modern .NET
-description: "Orchestrates end-to-end modernization flow: validate assessment.md prerequisite, process projects in topological order for SDK-style conversion (excluding web apps), then run package compatibility migration, project-by-project multitarget migration in topological order,
+description: "Orchestrates end-to-end modernization flow: run assessment, create migration plan, process projects in topological order for SDK-style conversion (excluding web apps), then run package compatibility migration, project-by-project multitarget migration in topological order,
  and ASP.NET Framework to ASP.NET Core web migration."
 argument-hint: "Specify the .sln/.slnx path, optional assessment.md path, optional target framework (default: net10.0), and optional legacy web host project path"
 target: vscode
@@ -79,7 +79,6 @@ Invoke the **Migration Planner** subagent with:
 The subagent returns a structured migration plan containing:
 - Project classifications (SDK-style status, web host status, required action per project)
 - Ordered list of projects needing SDK conversion
-- Package compatibility concerns
 - Web host migration candidates
 - Risks and open questions
 
@@ -89,7 +88,6 @@ Use the plan's project classifications to drive all subsequent phases — do not
 
 ## 4. Normalize to SDK-Style (Project by Project)
 
-Using the plan's Phase 1 list, for each project marked `needs-sdk-conversion`, in topological order:
 Using the plan's Phase 1 list, for each project marked `needs-sdk-conversion`, in topological order:
 - Invoke SDK-Style Project Conversion agent with that project path (and solution context if needed)
 - Wait for completion and record result

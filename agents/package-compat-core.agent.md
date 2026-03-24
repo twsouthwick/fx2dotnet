@@ -1,6 +1,6 @@
 ---
 name: Package Compatibility Core Migration
-description: "Applies a pre-built package compatibility plan to a .NET solution. Executes chunked package version updates and invokes Build Fix after each chunk. Requires a plan from the Package Compatibility Plan agent."
+description: "Applies a pre-built package compatibility plan to a .NET solution. Executes chunked package version updates and invokes Build Fix after each chunk. Requires a plan from the Assessment agent."
 argument-hint: "Specify the .sln path, target framework (e.g. net10.0), and the package compatibility plan (chunked update queue with compatibility cards)."
 target: vscode
 tools: ['search', 'read', 'edit', 'execute', 'todo', 'vscode/memory', 'vscode/askQuestions', 'agent']

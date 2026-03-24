@@ -1,6 +1,6 @@
 ---
 name: "Migration Planner"
-description: "Creates a comprehensive migration plan from assessment output. Classifies projects (web host vs library, SDK-style vs legacy), identifies package compatibility concerns, and produces an ordered plan for SDK conversion, package updates, and ASP.NET Core migration. Does not cover multitargeting specifics."
+description: "Creates a comprehensive migration plan from assessment output. Classifies projects (web host vs library, SDK-style vs legacy) and produces an ordered plan for SDK conversion, multitargeting, and ASP.NET Core migration. Does not cover multitargeting specifics."
 tools: [read, search, agent]
 agents: ['WebApp Project Detector', 'Explore']
 user-invocable: false
@@ -34,6 +34,8 @@ You receive from the calling agent:
 Read the assessment report at `assessmentPath`. Extract:
 - Identified frameworks and target versions
 - Key dependencies and blockers
+- Package compatibility plan (compatibility groups, chunked update queue, unsupported libraries)
+- Out-of-scope items
 - Any noted risks or migration concerns
 
 ### 2. Classify Each Project
@@ -53,21 +55,14 @@ For each project in `topologicalProjects`, in order:
    - `web-host` — web application host → skip SDK conversion, candidate for ASP.NET Core migration
    - `uncertain-web` — ambiguous classification, needs user confirmation
 
-### 3. Identify Package Concerns
-
-Scan project files in `topologicalProjects` for package references and assembly references:
-- Note packages that the assessment flagged as incompatible or risky
-- Note projects with no PackageReference (may use packages.config — relevant for SDK conversion)
-- Note any solution-level NuGet config (nuget.config locations, custom feeds)
-
-### 4. Identify Web Migration Candidates
+### 3. Identify Web Migration Candidates
 
 From the classified projects, identify which project(s) are web hosts:
 - If exactly one web host, record it as the ASP.NET Core migration candidate
 - If multiple web hosts, list all and flag that user must choose or confirm order
 - If no web hosts detected, note that the ASP.NET Core migration phase may be skippable
 
-### 5. Produce the Migration Plan
+### 4. Produce the Migration Plan
 
 Generate a structured plan with these sections:
 
@@ -97,9 +92,9 @@ Projects skipped:
 - {project path} — web host (deferred to Phase 3)
 
 ## Phase 2: Package Compatibility
-- Scope: full solution
-- Known concerns from assessment: {list}
-- Custom NuGet feeds: {list or none}
+- Plan provided by assessment (compatibility cards, chunked update queue)
+- Unsupported libraries from assessment: {list with recommended replacements}
+- Out-of-scope items from assessment: {list}
 
 ## Phase 3: Multitarget Migration
 - Projects to multitarget (in topological order): {list}

@@ -1,7 +1,8 @@
 ---
 name: "Assessment of .NET Solution for Migration"
 description: "Assesses a .NET solution for migration to .NET 10. Identifies frameworks, dependencies, routes, and blockers. Resolves NuGet feeds, audits package compatibility, and produces compatibility cards with a chunked update plan. Returns the assessment report path, topological project order, and package compatibility plan."
-tools: [microsoft.githubcopilot.appmodernization.mcp/*, swick.mcp.nugetversions/*]
+tools: [microsoft.githubcopilot.appmodernization.mcp/*, swick.mcp.nugetversions/*, read, search, agent]
+agents: ['Explore']
 argument-hint: "Required: Solution path of a .NET Project"
 ---
 
@@ -123,6 +124,32 @@ Order the required updates into chunks for minimum blast radius:
 - Group B packages before Group C
 - Within groups, order by dependency depth (leaf packages first)
 
+### 7. Unsupported Libraries
+
+During package compatibility analysis (Step 6c), some packages may have no version that supports the target framework — they are discontinued, .NET Framework-only, or have no modern .NET assets.
+
+For each unsupported package:
+1. Confirm there is genuinely no compatible version via NuGet metadata
+2. Invoke the **Explore** subagent to research replacement options:
+   - Search the codebase for how the package is used (API surface, call sites)
+   - Identify modern .NET alternatives (official successors, community replacements, built-in framework equivalents)
+3. Record a recommendation with:
+   - The unsupported package and why it has no path forward
+   - Recommended replacement library (or built-in alternative)
+   - Estimated migration effort: Low (drop-in API) | Medium (partial API changes) | High (significant rewrite)
+   - Projects affected
+
+### 8. Out-of-Scope Items Review
+
+After completing the package compatibility analysis, scan the solution for technologies and patterns that are explicitly **not** part of this migration. Load any skills in the workspace `skills/` folder that define migration policies or exclusions.
+
+For each out-of-scope item detected, record:
+- What was found (e.g. EF6 DbContext usage, specific package references)
+- Why it is out of scope for this migration
+- What the recommended post-migration action is
+
+Include these in the output as a dedicated section so the migration plan does not accidentally include them as work items.
+
 ## Output Format
 
 Return the assessment report path, topological project order, and package compatibility plan:
@@ -155,4 +182,12 @@ Chunk 2: ...
 
 ## Low-Confidence Items (require user approval)
 - {package}: {reason}
+
+## Unsupported Libraries
+| Package | Projects | Why Unsupported | Recommended Replacement | Effort |
+|---------|----------|-----------------|------------------------|--------|
+
+## Out-of-Scope Items
+| Item | Found In | Reason | Post-Migration Action |
+|------|----------|--------|-----------------------|
 ```

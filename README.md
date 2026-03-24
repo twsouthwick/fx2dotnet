@@ -39,7 +39,7 @@ The plugin decomposes a .NET Framework → modern .NET migration into strictly o
 
 ## Migration Flow
 
-The diagram below maps the full end-to-end workflow across all phases. Each phase feeds into the next — from initial analysis through deferred post-migration work. Sub-steps are expanded within each phase to show the granular tasks. Green nodes are prep work, blue nodes are planning steps, and gold nodes are committable tasks that produce code changes.
+The diagram below maps the full end-to-end workflow across all phases. Each phase feeds into the next — from initial analysis through deferred post-migration work. Sub-steps are expanded within each phase to show the granular tasks. Green nodes are prep work, blue nodes are planning steps, gold nodes are committable tasks that produce code changes, lavender-shaded phases are processed in topological order (breadth-first post-order), and peach-shaded phases are applied solution-wide.
 
 ```mermaid
 flowchart TD
@@ -50,7 +50,7 @@ flowchart TD
     A --> B
 
     %% ── SDK-Style Conversion (Breadth First Post-Order with Build-Fix) ──
-    subgraph SDK ["Convert Projects to SDK-Style"]
+    subgraph SDK ["SDK-Style Projects"]
         direction LR
         SDKP([Convert Projects to SDK-Style]):::planning
         SDKP --> S1
@@ -58,13 +58,8 @@ flowchart TD
     end
     B --> SDK
 
-    %% ── Shared topological-order annotation ──
-    TOPO[/"Topological order\n‹breadth-first post-order›"/]:::note
-    TOPO -.-> SDK
-    TOPO -.-> INPLACE
-
     %% ── Package Update Plan (Breadth First Post-Order Traversal) ──
-    subgraph PKG ["Package Update Plan"]
+    subgraph PKG ["Package Updates"]
         direction LR
         PKGP([Identify Package Update Plan]):::planning
         PKGP --> P1
@@ -73,7 +68,7 @@ flowchart TD
     SDK --> PKG
 
     %% ── In-Place Upgrades per Project (Breadth First Post-Order Traversal) ──
-    subgraph INPLACE ["Multi-target Projects"]
+    subgraph INPLACE ["Projects"]
         direction LR
 
         subgraph LIB1 ["Project 1"]
@@ -135,7 +130,7 @@ flowchart TD
     PKG --> INPLACE
 
     %% ── Side-by-Side Web App Migration ──
-    subgraph MVC ["Plan Side-by-Side Upgrade for Web App"]
+    subgraph MVC ["Web App"]
         direction LR
         MVCP([Plan Side-by-Side Upgrade]):::planning
         MVCP --> M1
@@ -203,20 +198,31 @@ flowchart TD
     classDef prep fill:#90EE90,stroke:#333,color:#000
     classDef planning fill:#87CEEB,stroke:#333,color:#000
     classDef task fill:#FFD700,stroke:#333,color:#000
-    classDef note fill:#FFF,stroke:#999,stroke-dasharray:5 5,color:#555
+
+    %% ── Topological-order phase shading ──
+    style SDK fill:#C9B1E0,stroke:#6C4FA0,color:#000
+    style INPLACE fill:#C9B1E0,stroke:#6C4FA0,color:#000
+
+    %% ── Solution-wide phase shading ──
+    style PKG fill:#F5C78E,stroke:#B85C0A,color:#000
 
     %% ── Legend ──
     subgraph Legend
-        direction LR
+        direction TB
         LEG1([Prep Work]):::prep
         LEG2([High-Level Planning]):::planning
         LEG3[Committable Task]:::task
+        LEG4[Topological Order\n‹breadth-first post-order›]:::topo
+        LEG5[Solution-Wide]:::swide
     end
+    Legend ~~~ A
+    classDef topo fill:#C9B1E0,stroke:#6C4FA0,color:#000
+    classDef swide fill:#F5C78E,stroke:#B85C0A,color:#000
 ```
 
 ## Breadth-First Post-Order Traversal
 
-Phases 3–5 (SDK conversion, package updates, and multitargeting) all process projects in **breadth-first post-order** — leaves first, then their dependents — so that every project's dependencies are already migrated before it is touched. The diagrams below illustrate this with a hypothetical solution dependency graph.
+Phases 3 and 5 (SDK conversion and multitargeting) process projects in **breadth-first post-order** — leaves first, then their dependents — so that every project's dependencies are already migrated before it is touched. The diagrams below illustrate this with a hypothetical solution dependency graph.
 
 **Dependency Graph:**
 

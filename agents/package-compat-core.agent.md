@@ -113,10 +113,14 @@ When queue completes (or process is stopped by user), report:
 
 If this agent was invoked as a subagent (by the orchestrator or another agent), skip this checkpoint — return results to the caller.
 
-If running standalone and files were modified, ask the user via `vscode/askQuestions`:
-- **Commit changes** — review and commit the package updates now
-- **Continue without committing** — keep changes in the working tree and end
-- **Let me review manually** — end so the user can inspect changes before deciding
+If running standalone and files were modified, use the `vscode/askQuestions` tool to present this question:
+
+Header: "Next Step"
+Question: "Package compatibility updates are complete. What would you like to do?"
+Options:
+- "Commit changes" — review and commit the package updates now
+- "Continue without committing" — keep changes in the working tree and end
+- "Let me review manually" — end so you can inspect changes before deciding
 
 If the user chooses to commit, present the **Commit Changes** handoff.
 

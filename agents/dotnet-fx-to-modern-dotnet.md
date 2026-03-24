@@ -202,10 +202,14 @@ When all phases complete:
 
 ### Completion Checkpoint
 
-Ask the user via `vscode/askQuestions`:
-- **Commit all changes** — review and commit everything from this migration run
-- **Continue without committing** — keep all changes in the working tree and end
-- **Let me review manually** — end so the user can inspect changes before deciding
+Use the `vscode/askQuestions` tool to present this question:
+
+Header: "Next Step"
+Question: "All migration phases are complete. What would you like to do?"
+Options:
+- "Commit all changes" — review and commit everything from this migration run
+- "Continue without committing" — keep all changes in the working tree and end
+- "Let me review manually" — end so you can inspect changes before deciding
 
 If the user chooses to commit, present the **Commit Changes** handoff.
 

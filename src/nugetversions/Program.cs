@@ -10,6 +10,7 @@ using ModelContextProtocol.Server;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Frameworks;
+using NuGet.Packaging;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 
@@ -88,9 +89,14 @@ internal static class NuGetPackageSupportService
 
         var recommendations = new List<PackageUpgradeRecommendation>();
 
+        var loadResult = LoadPackageSources(settingsResult.WorkspaceDirectory!, settingsResult.NuGetConfigPath);
+        var sources = loadResult.Error is null ? loadResult.Sources : (IReadOnlyList<PackageSource>)Array.Empty<PackageSource>();
+
         foreach (var package in packages)
         {
             var currentVersion = package.CurrentVersion?.Trim() ?? string.Empty;
+            var hasValidCurrentVersion = TryParseNuGetVersion(currentVersion, out var currentParsed);
+
             var minSupport = await FindMinimumSupportedVersionAsync(
                 package.PackageId,
                 settingsResult.WorkspaceDirectory!,
@@ -98,12 +104,30 @@ internal static class NuGetPackageSupportService
                 includePrerelease,
                 cancellationToken);
 
-            if (minSupport.MinimumVersion is null)
+            var legacyFlags = new LegacyPackageFlags(false, false);
+            if (hasValidCurrentVersion && sources.Count > 0)
             {
-                continue;
+                legacyFlags = await CheckLegacyPackageFlagsAsync(
+                    package.PackageId, currentParsed, sources, cancellationToken);
             }
 
-            if (!TryParseNuGetVersion(currentVersion, out var current))
+            var needsUpgrade = false;
+            string? reason = null;
+
+            if (minSupport.MinimumVersion is not null)
+            {
+                if (!hasValidCurrentVersion)
+                {
+                    needsUpgrade = true;
+                    reason = "Current version is missing or invalid; review and upgrade to at least the minimum supported version.";
+                }
+                else if (TryParseNuGetVersion(minSupport.MinimumVersion, out var minimumSupported) && currentParsed < minimumSupported)
+                {
+                    needsUpgrade = true;
+                }
+            }
+
+            if (needsUpgrade || legacyFlags.HasLegacyContentFolder || legacyFlags.HasInstallScript)
             {
                 recommendations.Add(new PackageUpgradeRecommendation(
                     package.PackageId,
@@ -112,25 +136,9 @@ internal static class NuGetPackageSupportService
                     minSupport.Supports,
                     minSupport.SupportFamilies,
                     minSupport.Feed,
-                    "Current version is missing or invalid; review and upgrade to at least the minimum supported version."));
-                continue;
-            }
-
-            if (!TryParseNuGetVersion(minSupport.MinimumVersion, out var minimumSupported))
-            {
-                continue;
-            }
-
-            if (current < minimumSupported)
-            {
-                recommendations.Add(new PackageUpgradeRecommendation(
-                    package.PackageId,
-                    package.CurrentVersion,
-                    minSupport.MinimumVersion,
-                    minSupport.Supports,
-                    minSupport.SupportFamilies,
-                    minSupport.Feed,
-                    null));
+                    legacyFlags.HasLegacyContentFolder,
+                    legacyFlags.HasInstallScript,
+                    reason));
             }
         }
 
@@ -401,6 +409,46 @@ internal static class NuGetPackageSupportService
 
     private sealed record PackageSourceLoadResult(IReadOnlyList<PackageSource> Sources, string? Error);
 
+    private static async Task<LegacyPackageFlags> CheckLegacyPackageFlagsAsync(
+        string packageId,
+        NuGet.Versioning.NuGetVersion version,
+        IReadOnlyList<PackageSource> sources,
+        CancellationToken cancellationToken)
+    {
+        using var cache = new SourceCacheContext();
+        foreach (var source in sources)
+        {
+            try
+            {
+                var repository = new SourceRepository(source, Providers);
+                var resource = await repository.GetResourceAsync<FindPackageByIdResource>(cancellationToken);
+                using var stream = new MemoryStream();
+                if (!await resource.CopyNupkgToStreamAsync(packageId, version, stream, cache, NullLogger.Instance, cancellationToken))
+                    continue;
+
+                stream.Position = 0;
+                using var reader = new PackageArchiveReader(stream);
+                var files = (await reader.GetFilesAsync(cancellationToken)).ToList();
+
+                var hasContentFolder = files.Any(f =>
+                    f.StartsWith("content/", StringComparison.OrdinalIgnoreCase));
+
+                var hasInstallScript = files.Any(f =>
+                    string.Equals(f, "tools/install.ps1", StringComparison.OrdinalIgnoreCase));
+
+                return new LegacyPackageFlags(hasContentFolder, hasInstallScript);
+            }
+            catch
+            {
+                continue;
+            }
+        }
+
+        return new LegacyPackageFlags(false, false);
+    }
+
+    private sealed record LegacyPackageFlags(bool HasLegacyContentFolder, bool HasInstallScript);
+
     private static bool TryParseNuGetVersion(string? version, out NuGet.Versioning.NuGetVersion parsed)
     {
         parsed = new NuGet.Versioning.NuGetVersion(0, 0, 0);
@@ -425,10 +473,12 @@ internal sealed record PackageVersionInput(string PackageId, string CurrentVersi
 internal sealed record PackageUpgradeRecommendation(
     string PackageId,
     string? CurrentVersion,
-    string MinimumSupportedVersion,
+    string? MinimumSupportedVersion,
     IReadOnlyList<string> Supports,
     IReadOnlyList<string> SupportFamilies,
     string? Feed,
+    bool HasLegacyContentFolder,
+    bool HasInstallScript,
     string? Reason);
 
 internal sealed record PackageUpgradeRecommendationResult(

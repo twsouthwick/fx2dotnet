@@ -95,10 +95,14 @@ For each candidate package, collect real compatibility evidence:
 - If unsupported, identify the MINIMUM compatible version
 - Call the `FindRecommendedPackageUpgrades` MCP tool with the effective feed context
 - Record source evidence and which feed returned the metadata
+- Check `HasLegacyContentFolder` and `HasInstallScript` flags on each recommendation:
+  - **HasLegacyContentFolder**: the current nupkg ships a `content/` folder (legacy content deployment, not the modern `contentFiles/` convention). These packages copy files into the project at install time via `packages.config` semantics and will not work correctly with `PackageReference`.
+  - **HasInstallScript**: the current nupkg contains a `tools/install.ps1` script. These scripts only run under `packages.config` installs and are silently ignored by `PackageReference`, so package behavior may differ after migration.
 
 For each package, produce a compatibility card:
 - packageId, currentVersion, targetFramework
 - compatibleVersionsOrRange, selectedVersion (minimum required)
+- hasLegacyContentFolder, hasInstallScript
 - evidenceSources, feedSourceUsed
 - confidence: High | Medium | Low
 
@@ -116,6 +120,7 @@ Create compatibility groups:
 - Group A: already compatible (no change)
 - Group B: minimal patch/minor updates required
 - Group C: potentially disruptive updates (major jump or known API surface risk)
+- Group D: packages with legacy `content/` folder or `install.ps1` that need special attention regardless of version compatibility
 
 #### 6d. Order Updates into Minimal-Risk Chunks
 
@@ -169,12 +174,18 @@ Included: {list}
 Excluded: {list with reasons}
 
 ## Compatibility Cards
-| Package | Current | Selected | Confidence | Evidence |
+| Package | Current | Selected | Legacy Content | Install Script | Confidence | Evidence |
 
 ## Compatibility Groups
 - Group A (no change): {list}
 - Group B (minor updates): {list}
 - Group C (major/risky): {list}
+- Group D (legacy packaging patterns): {list}
+
+## Legacy Packaging Warnings
+Packages flagged with `content/` folder or `install.ps1` require manual review:
+| Package | Current | Legacy Content Folder | Install Script | Action Required |
+|---------|---------|----------------------|----------------|-----------------|
 
 ## Chunked Update Plan
 Chunk 1: {package list with versions}

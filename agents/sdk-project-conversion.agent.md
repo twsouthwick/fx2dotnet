@@ -23,9 +23,10 @@ You are an SDK-STYLE PROJECT CONVERSION AGENT for .NET projects. Your job is to 
 - All `.fx2dotnet/` paths are relative to `{solutionDir}`
 
 ### File Operations
+- Use the `read` tool to check whether a state file exists (if the read fails, the file does not exist)
 - Use the `edit` tool to create and update state files
-- Use the `read` tool to check for existing state files
-- Use the `execute` tool to create directories (`mkdir`)
+- Use the `execute` tool only for creating directories (e.g., `mkdir`)
+- Do NOT use shell commands (`Test-Path`, `Get-Item`, etc.) for file existence checks — always use `read`
 
 </state-file-conventions>
 

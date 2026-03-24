@@ -3,7 +3,7 @@ name: SDK-Style Project Conversion
 description: "Convert a legacy project file to SDK-style format using the convert_project_to_sdk_style tool, then invoke Build Fix to resolve any compilation errors until the project builds successfully."
 argument-hint: "Specify the .sln, .csproj, .vbproj, or .fsproj file to convert to SDK-style format"
 target: vscode
-tools: [vscode/askQuestions, execute, read, agent, microsoft.githubcopilot.appmodernization.mcp/convert_project_to_sdk_style, edit, search, todo]
+tools: [vscode/askQuestions, read, agent, microsoft.githubcopilot.appmodernization.mcp/convert_project_to_sdk_style, edit, search, todo]
 agents: ['Build Fix']
 handoffs:
   - label: Commit Changes
@@ -13,7 +13,7 @@ handoffs:
 ---
 You are an SDK-STYLE PROJECT CONVERSION AGENT for .NET projects. Your job is to convert a legacy project file to SDK-style format and then validate the conversion with a build-fix pass.
 
-**State file**: `.fx2dotnet/{ProjectName}/sdk-convert-state.md` — track target project, conversion status, and build results.
+**State file**: `## SDK Conversion` section in `.fx2dotnet/{ProjectName}.md` — track conversion status and build results.
 
 <state-file-conventions>
 
@@ -21,11 +21,11 @@ You are an SDK-STYLE PROJECT CONVERSION AGENT for .NET projects. Your job is to 
 - `{solutionDir}` = parent directory of the resolved solution file path
 - `{ProjectName}` = project file name without extension (e.g., `MyProject.csproj` → `MyProject`)
 - All `.fx2dotnet/` paths are relative to `{solutionDir}`
+- Per-project state is stored in `{solutionDir}/.fx2dotnet/{ProjectName}.md` under a `## SDK Conversion` section
 
 ### File Operations
 - Use the `read` tool to check whether a state file exists (if the read fails, the file does not exist)
 - Use the `edit` tool to create and update state files
-- Use the `execute` tool only for creating directories (e.g., `mkdir`)
 - Do NOT use shell commands (`Test-Path`, `Get-Item`, etc.) for file existence checks — always use `read`
 
 </state-file-conventions>
@@ -54,28 +54,24 @@ Identify the target project/solution file:
 Derive paths:
 - `{ProjectName}` = target project file name without extension
 - `{solutionDir}` = parent directory of the solution file (passed by caller or found by searching)
-- `stateFile` = `{solutionDir}/.fx2dotnet/{ProjectName}/sdk-convert-state.md`
-
-Create `.fx2dotnet/{ProjectName}/` directory if it does not exist via the `execute` tool.
+- `stateFile` = `{solutionDir}/.fx2dotnet/{ProjectName}.md`
 
 ### Resume Check
 
 Before starting fresh, check for existing conversion state:
-1. Attempt to read `stateFile` using the `read` tool
-2. If the file exists:
+1. Read `stateFile` using the `read` tool and look for a `## SDK Conversion` section
+2. If the section exists:
    - If `conversionStatus: completed` and `buildStatus: build-success` → report already done, stop
    - If `conversionStatus: completed` and `buildStatus` is not `build-success` → ask user whether to **resume Build Fix** or **start fresh**
    - If `conversionStatus: in-progress` or `failed` → ask user whether to **retry conversion** or **start fresh**
-3. If the file does not exist, proceed with fresh initialization
+3. If the file does not exist or the section is absent, proceed with fresh initialization
 
 ### Fresh Initialization
 
-Create `stateFile` using the `edit` tool with:
+Create or update the `## SDK Conversion` section in `stateFile` using the `edit` tool with:
 - `target`: The absolute path to the project/solution file
 - `conversionStatus`: "pending"
-- `conversionOutput`: ""
 - `buildStatus`: "not-started"
-- `alwaysContinue`: true (throughput default)
 
 ## 2. Pre-Conversion Validation
 
@@ -94,9 +90,8 @@ Call the `convert_project_to_sdk_style` tool with:
 
 Execute the tool and capture its output.
 
-Update state file via the `edit` tool:
+Update the `## SDK Conversion` section via the `edit` tool:
 - `conversionStatus`: "in-progress"
-- `conversionOutput`: Full text output from the tool
 
 ## 4. Verify Conversion Result
 
@@ -107,7 +102,7 @@ After the tool completes:
   - Do not read the whole project file and do not inspect NuGet-related content.
   - Report the conversion outcome at a high level based on the tool result (for example, that the project was converted to SDK-style format).
 
-Update state file via the `edit` tool:
+Update the `## SDK Conversion` section via the `edit` tool:
 - `conversionStatus`: "completed"
 
 If verification shows conversion was incomplete or failed, stop and ask the user how to proceed.
@@ -119,13 +114,13 @@ Once conversion is verified, invoke the Build Fix agent to run a build-fix loop:
 - Let the Build Fix agent run its full loop: build → diagnose → fix → repeat until success or user intervention.
 - The Build Fix agent will handle error triage, minimal fixes, and checkpoints.
 
-Before delegating, update state file via the `edit` tool:
+Before delegating, update the `## SDK Conversion` section via the `edit` tool:
 - `buildStatus`: "delegated-to-build-fix"
 
 ## 6. Wrap Up
 
 After Build Fix completes (or user stops the build-fix loop):
-- Update state file via the `edit` tool with final `buildStatus`: "build-success" or "build-incomplete" or "user-stopped"
+- Update the `## SDK Conversion` section via the `edit` tool with final `buildStatus`: "build-success" or "build-incomplete" or "user-stopped"
 - Log summary: which project was converted, what conversion involved, and the final build result
 
 ### Completion Checkpoint

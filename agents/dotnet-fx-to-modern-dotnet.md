@@ -4,7 +4,7 @@ description: "Orchestrates end-to-end modernization flow: run assessment, create
  and ASP.NET Framework to ASP.NET Core web migration."
 argument-hint: "Specify the .sln/.slnx path and optional target framework (default: net10.0)"
 target: vscode
-tools: [vscode/askQuestions, execute, read, agent, edit, search, todo]
+tools: [vscode/askQuestions, read, agent, edit, search, todo]
 agents: ['Assessment of .NET Solution for Migration', 'Migration Planner', 'SDK-Style Project Conversion', 'Package Compatibility Core Migration', 'Multitarget Migration', 'ASP.NET Framework to ASP.NET Core Web Migration', 'Explore']
 handoffs:
   - label: Commit Changes
@@ -32,18 +32,21 @@ You are an ORCHESTRATION AGENT for .NET modernization. You enforce stage order a
 ├── analysis.md                     # Assessment findings
 ├── package-updates.md              # Package compatibility analysis + execution state
 ├── preferences.md                  # Continuation preferences (alwaysContinue flags)
-├── {ProjectName}/
-│   ├── plan.md                     # Project classification + status
-│   ├── build-fix-state.md          # Build fix error groups, retries, strategies
-│   ├── multitarget-state.md        # Multitarget migration state
-│   ├── sdk-convert-state.md        # SDK conversion state
-│   └── web-migration-plan.md       # ASP.NET Core migration plan (web hosts only)
+├── {ProjectName}.md                # All migration state for one project
+```
+
+Each `{ProjectName}.md` file uses sections written by different agents:
+```markdown
+## Classification          ← Project Type Detector
+## SDK Conversion           ← SDK-Style Project Conversion
+## Build Fix                ← Build Fix (transient — reset each invocation)
+## Multitarget              ← Multitarget Migration
+## Web Migration            ← ASP.NET Web Migration (web hosts only)
 ```
 
 ### File Operations
 - Use the `read` tool to check whether a state file exists (if the read fails, the file does not exist)
 - Use the `edit` tool to create and update state files
-- Use the `execute` tool only for creating directories (e.g., `mkdir`)
 - Do NOT use shell commands (`Test-Path`, `Get-Item`, etc.) for file existence checks — always use `read`
 - State files are plain Markdown and can be inspected by the user at any time
 
@@ -90,18 +93,15 @@ Before initializing fresh state, check for existing progress by reading `{stateR
 
 ### Fresh Initialization
 
-Create the `.fx2dotnet/` directory structure as needed using the `execute` tool, then create `.fx2dotnet/plan.md` using the `edit` tool with:
+Create `.fx2dotnet/plan.md` using the `edit` tool with:
 - solutionPath
 - targetFramework
-- assessmentPath: null (populated by assessment phase)
-- topologicalProjects: []
-- projectClassifications: []
-- sdkConversionResults: []
+- lastCompletedPhase: "none"
 - packageCompatStatus: "not-started"
 - multitargetStatus: "not-started"
-- multitargetResults: []
 - aspnetMigrationStatus: "not-started"
-- lastCompletedPhase: "none"
+
+Do not duplicate data that lives in other `.fx2dotnet/` files (assessment report, project classifications, package compatibility data). The orchestrator re-reads those files when resuming.
 
 ## 2. Run Assessment
 
@@ -109,18 +109,15 @@ Invoke the **Assessment of .NET Solution for Migration** subagent with the solut
 The subagent writes its outputs to:
 - `.fx2dotnet/analysis.md` — the full assessment report
 - `.fx2dotnet/package-updates.md` — package compatibility findings (feeds, compatibility cards, unsupported libs, out-of-scope items)
-- `.fx2dotnet/{ProjectName}/plan.md` — per-project classification files
+- `.fx2dotnet/{ProjectName}.md` `## Classification` section — per-project classification
 
 After the subagent completes:
-- Read `.fx2dotnet/analysis.md` to confirm it was written → store path as assessmentPath
-- Extract the topological project order → store in topologicalProjects
-- Extract project classifications → store as projectClassifications
-- Read `.fx2dotnet/package-updates.md` to confirm package compatibility findings → store as packageCompatFindings
+- Read `.fx2dotnet/analysis.md` to confirm it was written and contains the topological project order
+- Read `.fx2dotnet/package-updates.md` to confirm package compatibility findings were written
 
-If topologicalProjects is empty or missing, report the error and ask user whether to retry or stop.
+If the topological project order is empty or missing from the analysis, report the error and ask user whether to retry or stop.
 
-Update `.fx2dotnet/plan.md` via `edit` with assessmentPath, topologicalProjects, projectClassifications, and packageCompatFindings.
-Record prerequisiteStatus: "satisfied"
+Update `lastCompletedPhase: "assessment"` in `.fx2dotnet/plan.md` via the `edit` tool.
 
 ## 3. Create Migration Plan
 

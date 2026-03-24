@@ -1,7 +1,7 @@
 ---
 name: "Assessment of .NET Solution for Migration"
 description: "Gathers information about a .NET solution for migration to .NET 10. Identifies frameworks, dependencies, routes, and blockers. Classifies each project (SDK-style vs legacy, web host vs library). Resolves NuGet feeds, audits package compatibility, and produces compatibility cards. Returns the assessment report path, topological project order, project classifications, and package compatibility findings."
-tools: [microsoft.githubcopilot.appmodernization.mcp/*, swick.mcp.nugetversions/*, read, search, agent, edit, execute, vscode/askQuestions]
+tools: [microsoft.githubcopilot.appmodernization.mcp/*, swick.mcp.nugetversions/*, read, search, agent, edit, vscode/askQuestions]
 agents: ['Explore', 'Project Type Detector']
 argument-hint: "Required: Solution path of a .NET Project"
 ---
@@ -20,12 +20,11 @@ You are a .NET migration assessment specialist. Your job is to gather informatio
 ### Output Files
 - `.fx2dotnet/analysis.md` — full assessment report
 - `.fx2dotnet/package-updates.md` — package compatibility findings (feeds, cards, unsupported libs, out-of-scope items)
-- `.fx2dotnet/{ProjectName}/plan.md` — per-project classification (written by Project Type Detector)
+- `.fx2dotnet/{ProjectName}.md` — per-project state (classification written to `## Classification` section by Project Type Detector)
 
 ### File Operations
 - Use the `read` tool to check whether a state file exists (if the read fails, the file does not exist)
 - Use the `edit` tool to create and update state files
-- Use the `execute` tool only for creating directories (e.g., `mkdir`)
 - Do NOT use shell commands (`Test-Path`, `Get-Item`, etc.) for file existence checks — always use `read`
 
 </state-file-conventions>
@@ -52,7 +51,7 @@ Before starting MCP workflow, check for existing assessment output:
 4. If reusing, skip to the output step and return the existing data
 5. If the file does not exist or is incomplete, proceed with MCP workflow below
 
-Ensure `.fx2dotnet/` directory exists — create it via `execute` tool (`mkdir`) if needed.
+Ensure `.fx2dotnet/` directory exists — create it via `edit` tool (writing any state file will create the directory) if needed.
 
 #### MCP Workflow Initialization
 
@@ -183,7 +182,7 @@ After all assessment work is complete, write the results to `.fx2dotnet/` files:
 
 1. Write the full assessment report (all sections below) to `.fx2dotnet/analysis.md` using the `edit` tool
 2. Write the package compatibility findings (NuGet Feeds, Compatibility Cards, Unsupported Libraries, Out-of-Scope Items) to `.fx2dotnet/package-updates.md` using the `edit` tool
-3. For each project classification, verify that `.fx2dotnet/{ProjectName}/plan.md` was created by the Project Type Detector subagent — if any are missing, write them now
+3. For each project classification, verify that `.fx2dotnet/{ProjectName}.md` has a `## Classification` section written by the Project Type Detector subagent — if any are missing, write them now
 
 These files enable the orchestrator and downstream agents to resume from a completed assessment without re-running it.
 

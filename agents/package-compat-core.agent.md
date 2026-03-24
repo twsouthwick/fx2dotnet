@@ -3,7 +3,7 @@ name: Package Compatibility Core Migration
 description: "Applies a pre-built package compatibility plan to a .NET solution. Executes chunked package version updates and invokes Build Fix after each chunk. Requires the chunked update plan from the Migration Planner."
 argument-hint: "Specify the .sln path, target framework (e.g. net10.0), and the package compatibility plan (chunked update queue with compatibility cards)."
 target: vscode
-tools: ['search', 'read', 'edit', 'execute', 'todo', 'vscode/askQuestions', 'agent']
+tools: ['search', 'read', 'edit', 'todo', 'vscode/askQuestions', 'agent']
 agents: ['Build Fix']
 user-invocable: false
 handoffs:
@@ -26,7 +26,6 @@ You are a PACKAGE COMPATIBILITY MIGRATION AGENT for .NET solutions. Your job is 
 ### File Operations
 - Use the `read` tool to check whether a state file exists (if the read fails, the file does not exist)
 - Use the `edit` tool to create and update state files
-- Use the `execute` tool only for creating directories (e.g., `mkdir`)
 - Do NOT use shell commands (`Test-Path`, `Get-Item`, etc.) for file existence checks — always use `read`
 
 </state-file-conventions>
@@ -71,9 +70,8 @@ Update `stateFile` using the `edit` tool (the assessment agent may have already 
 - `target`
 - `targetFramework`
 - `alwaysContinue: false` (or load persisted value from `preferencesFile` under `[package-compat]` section)
-- `plan` (the received chunked update queue)
-- `chunkResults: []`
-- `lastActionSummary: ""`
+- `chunkedUpdateQueue: []` (the received chunked update queue)
+- `chunkResults: []` (each result: `{ chunkId, status, packagesUpdated, buildFixOutcome }`)
 
 ## 2. Chunked Update + Build Fix Loop
 

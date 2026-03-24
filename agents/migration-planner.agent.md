@@ -53,19 +53,21 @@ From the provided `assessmentContent`, extract:
 
 Using the project classifications from the assessment, assign an action to each project in `topologicalProjects`:
 - `skip-already-sdk` — already SDK-style, no conversion needed
-- `needs-sdk-conversion` — legacy format, not a web host → SDK conversion required
-- `web-host` — web application host → skip SDK conversion, candidate for ASP.NET Core migration
+- `needs-sdk-conversion` — legacy format, not a web-app-host → SDK conversion required (includes web-library projects)
+- `web-app-host` — web application host project → skip SDK conversion; migrated in Phase 4 via ASP.NET Core migration
 - `uncertain-web` — assessment marked as `uncertain`, flag for user confirmation
 - `windows-service` — contains `ServiceBase` or TopShelf; will need service code migration during multitarget phase (via `windows-service-migration` skill)
 
 A project can have both `needs-sdk-conversion` and `windows-service` actions.
 
+Only `web-app-host` projects (projects that own the hosting entry point) are excluded from SDK conversion — they are handled in Phase 4. Web-library projects (libraries that reference web frameworks but do not host) SHOULD receive `needs-sdk-conversion` like any other library.
+
 ### 3. Identify Web Migration Candidates
 
-From the classified projects, identify which project(s) are web hosts:
-- If exactly one web host, record it as the ASP.NET Core migration candidate
-- If multiple web hosts, list all and flag that user must choose or confirm order
-- If no web hosts detected, note that the ASP.NET Core migration phase may be skippable
+From the classified projects, identify which project(s) are web-app-hosts:
+- If exactly one web-app-host, record it as the ASP.NET Core migration candidate
+- If multiple web-app-hosts, list all and flag that user must choose or confirm order
+- If no web-app-hosts detected, note that the ASP.NET Core migration phase may be skippable
 
 ### 4. Create Chunked Package Update Plan
 
@@ -91,23 +93,23 @@ Generate a structured plan with these sections:
 - Solution: {solutionPath}
 - Target: {targetFramework}
 - Total projects: {count}
-- Projects needing SDK conversion: {count}
-- Web host projects: {count}
+- Projects needing SDK conversion: {count} (includes web-library projects)
+- Web-app-host projects (excluded from SDK conversion): {count}
 - Assessment: provided inline
 
 ## Project Classifications
 | # | Project | SDK-Style | Classification | Action |
 |---|---------|-----------|----------------|--------|
-| 1 | {path}  | yes/no    | web-app-host / windows-service / class-library / console-app / winforms-app / wpf-app / uncertain | skip / sdk-convert / web-migrate / windows-service |
+| 1 | {path}  | yes/no    | web-app-host / web-library / windows-service / class-library / console-app / winforms-app / wpf-app / uncertain | skip / sdk-convert / web-migrate / windows-service |
 
 ## Phase 1: SDK-Style Conversion
-Projects to convert (in topological order):
+Projects to convert (in topological order, includes web-library projects):
 1. {project path} — {notes}
 2. ...
 
 Projects skipped:
 - {project path} — already SDK-style
-- {project path} — web host (deferred to Phase 3)
+- {project path} — web-app-host (SDK conversion skipped; handled in Phase 4)
 
 ## Phase 2: Package Compatibility
 
@@ -141,7 +143,9 @@ Projects containing ServiceBase or TopShelf that will undergo service code migra
 - Note: Both hosting packages (`Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Hosting.WindowsServices`) support .NET Framework 4.6.2+ — migration is safe during multitargeting
 
 ## Phase 4: ASP.NET Core Web Migration
-- Candidate web host(s): {project path(s)}
+- Candidate web-app-host(s): {project path(s)}
+- Note: These host projects were excluded from SDK-style conversion in Phase 1
+- Web-library projects were already converted in Phase 1
 - Requires user confirmation: yes/no
 
 ## Risks and Open Questions

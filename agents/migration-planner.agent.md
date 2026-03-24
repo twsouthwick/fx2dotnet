@@ -30,11 +30,9 @@ You receive from the calling agent:
 
 The assessment content contains:
 - Project classifications (SDK-style status, web host classification, confidence, evidence per project)
-- Compatibility cards for every package (current version, selected version, confidence, evidence)
-- Compatibility groups (A: no change, B: minor updates, C: major/risky, D: legacy packaging)
-- Unsupported libraries with replacement recommendations
+- Compatibility cards for every package (current version, whether it supports the target, minimum compatible version, legacy content/install script flags)
+- Unsupported libraries (packages with no compatible version)
 - Out-of-scope items with post-migration actions
-- Legacy packaging warnings (content folders, install scripts)
 
 ## Workflow
 
@@ -44,9 +42,9 @@ From the provided `assessmentContent`, extract:
 - Project classifications (SDK-style status, web host status per project)
 - Identified frameworks and target versions
 - Key dependencies and blockers
-- Package compatibility findings (compatibility cards, compatibility groups, unsupported libraries)
-- Out-of-scope items and legacy packaging warnings
-- Low-confidence items requiring user approval
+- Package compatibility cards (current version, target support, minimum compatible version, legacy flags)
+- Unsupported libraries
+- Out-of-scope items
 - Any noted risks or migration concerns
 
 ### 2. Map Project Actions
@@ -60,7 +58,11 @@ Using the project classifications from the assessment, assign an action to each 
 
 A project can have both `needs-sdk-conversion` and `windows-service` actions.
 
-Only `web-app-host` projects (projects that own the hosting entry point) are excluded from SDK conversion — they are handled in Phase 4. Web-library projects (libraries that reference web frameworks but do not host) SHOULD receive `needs-sdk-conversion` like any other library.
+Projects are excluded from SDK conversion if they are:
+- Already SDK-style (`skip-already-sdk`) — no conversion needed
+- `web-app-host` projects (projects that own the hosting entry point) — they are handled in Phase 4
+
+Web-library projects (libraries that reference web frameworks but do not host) SHOULD receive `needs-sdk-conversion` like any other library.
 
 ### 3. Identify Web Migration Candidates
 
@@ -71,14 +73,18 @@ From the classified projects, identify which project(s) are web-app-hosts:
 
 ### 4. Create Chunked Package Update Plan
 
-Using the compatibility cards and groups from the assessment, order the required package updates into an execution sequence with minimum blast radius:
+The ONLY goal of package updates in this phase is to reach versions that support .NET Core / .NET Standard / modern .NET. Do NOT include updates motivated purely by security advisories, bug fixes, or staying on the latest version — those are out of scope for the migration and can be addressed separately afterward.
 
-1. Extract compatibility groups A–D from the assessment
-2. Exclude Group A packages (already compatible — no action needed)
-3. Order Group B (minor updates) before Group C (major/risky)
-4. Within each group, order by dependency depth (leaf packages first)
-5. Each package marked for update appears exactly once
-6. Group D packages (legacy packaging patterns) should be flagged with manual review notes regardless of which chunk they fall in
+Using the compatibility cards from the assessment, build an ordered update plan:
+
+1. Exclude packages whose current version already supports the target (marked `Supports Target: yes`)
+2. From the remaining packages, classify each update by risk:
+   - Minor updates: the minimum compatible version is a patch or minor bump from the current version
+   - Major updates: the minimum compatible version is a major version jump or has known API surface risk
+3. Order minor updates before major updates
+4. Within each risk level, order by dependency depth (leaf packages first)
+5. Each package appears exactly once
+6. Flag packages with `Legacy Content: yes` or `Install Script: yes` with manual review notes
 
 Produce numbered chunks, each containing a set of packages that can be updated and validated together.
 
@@ -113,24 +119,22 @@ Projects skipped:
 
 ## Phase 2: Package Compatibility
 
-Compatibility summary from assessment:
-- Group A (already compatible): {list}
-- Group B (minor updates): {list}
-- Group C (major/risky): {list}
-- Group D (legacy packaging): {list}
+Packages already compatible (no update needed): {list}
+Packages requiring update: {list}
 
 ### Chunked Update Plan
-Chunk 1: {package list with versions}
+Chunk 1: {package list with current → min compatible versions}
 Chunk 2: ...
 
+### Legacy Packaging Warnings
+Packages with `content/` folder or `install.ps1` requiring manual review:
+| Package | Current | Min Compatible | Legacy Content | Install Script |
+
 ### Unsupported Libraries
-| Package | Projects | Why Unsupported | Recommended Replacement | Effort |
+| Package | Current | Projects | Notes |
 
 ### Out-of-Scope Items
 | Item | Why Out of Scope | Post-Migration Action |
-
-### Low-Confidence Items (require user approval)
-- {package}: {reason}
 
 ## Phase 3: Multitarget Migration
 - Projects to multitarget (in topological order): {list}

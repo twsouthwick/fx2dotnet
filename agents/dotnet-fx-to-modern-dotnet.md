@@ -79,7 +79,7 @@ Invoke the **Migration Planner** subagent with:
 The subagent returns a structured migration plan containing:
 - Project classifications (SDK-style status, web host status, required action per project)
 - Ordered list of projects needing SDK conversion
-- Chunked package update plan (sequenced from assessment compatibility groups)
+- Chunked package update plan (sequenced by risk: minor updates before major)
 - Web host migration candidates
 - Risks and open questions
 

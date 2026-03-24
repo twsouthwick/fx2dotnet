@@ -103,52 +103,33 @@ Classify project scope:
 
 #### 7c. Ground Compatibility with NuGet Data
 
-For each candidate package, collect real compatibility evidence:
-- Determine whether current version supports the target framework
-- If unsupported, identify the MINIMUM compatible version
-- Call the `FindRecommendedPackageUpgrades` MCP tool with the effective feed context
-- Record source evidence and which feed returned the metadata
-- Check `HasLegacyContentFolder` and `HasInstallScript` flags on each recommendation:
-  - **HasLegacyContentFolder**: the current nupkg ships a `content/` folder (legacy content deployment, not the modern `contentFiles/` convention). These packages copy files into the project at install time via `packages.config` semantics and will not work correctly with `PackageReference`.
-  - **HasInstallScript**: the current nupkg contains a `tools/install.ps1` script. These scripts only run under `packages.config` installs and are silently ignored by `PackageReference`, so package behavior may differ after migration.
+For each candidate package, collect real compatibility data. The assessment does NOT make update decisions or group packages — it only gathers facts for the Migration Planner.
+
+1. Call the `FindRecommendedPackageUpgrades` MCP tool with the effective feed context
+2. For each package, record:
+   - Whether the current version already supports the target framework
+   - If not, the **minimum version** that supports both .NET Framework and .NET Core/Standard/modern .NET
+   - If no compatible version exists at all, flag as unsupported
+3. Check `HasLegacyContentFolder` and `HasInstallScript` flags on each recommendation:
+   - **HasLegacyContentFolder**: the current nupkg ships a `content/` folder (legacy content deployment, not the modern `contentFiles/` convention). These packages copy files into the project at install time via `packages.config` semantics and will not work correctly with `PackageReference`.
+   - **HasInstallScript**: the current nupkg contains a `tools/install.ps1` script. These scripts only run under `packages.config` installs and are silently ignored by `PackageReference`, so package behavior may differ after migration.
+4. Record which feed returned the metadata
 
 For each package, produce a compatibility card:
 - packageId, currentVersion, targetFramework
-- compatibleVersionsOrRange, selectedVersion (minimum required)
+- currentVersionSupportsTarget (yes/no)
+- minimumCompatibleVersion (if current doesn't support target; null otherwise)
 - hasLegacyContentFolder, hasInstallScript
-- evidenceSources, feedSourceUsed
-- confidence: High | Medium | Low
-
-Confidence rubric:
-- **High**: metadata directly proves compatibility for target framework
-- **Medium**: compatibility inferred from dependency/assets graph with minor uncertainty
-- **Low**: conflicting or incomplete metadata; flag for user approval
-
-Decision policy:
-- If current version is compatible, do not change it
-- If incompatible, choose the smallest version bump, preferring the minimum from `FindRecommendedPackageUpgrades`
-- Avoid major-version jumps unless no lower-impact path exists
-
-Create compatibility groups:
-- Group A: already compatible (no change)
-- Group B: minimal patch/minor updates required
-- Group C: potentially disruptive updates (major jump or known API surface risk)
-- Group D: packages with legacy `content/` folder or `install.ps1` that need special attention regardless of version compatibility
+- feedSourceUsed
 
 ### 8. Unsupported Libraries
 
 During package compatibility analysis (Step 7c), some packages may have no version that supports the target framework — they are discontinued, .NET Framework-only, or have no modern .NET assets.
 
-For each unsupported package:
-1. Confirm there is genuinely no compatible version via NuGet metadata
-2. Invoke the **Explore** subagent to research replacement options:
-   - Search the codebase for how the package is used (API surface, call sites)
-   - Identify modern .NET alternatives (official successors, community replacements, built-in framework equivalents)
-3. Record a recommendation with:
-   - The unsupported package and why it has no path forward
-   - Recommended replacement library (or built-in alternative)
-   - Estimated migration effort: Low (drop-in API) | Medium (partial API changes) | High (significant rewrite)
-   - Projects affected
+For each unsupported package, record:
+- The package ID and current version
+- That no compatible version exists (confirmed via NuGet metadata)
+- Which projects reference it
 
 ### 9. Out-of-Scope Items Review
 
@@ -187,25 +168,10 @@ Included: {list}
 Excluded: {list with reasons}
 
 ## Compatibility Cards
-| Package | Current | Selected | Legacy Content | Install Script | Confidence | Evidence |
-
-## Compatibility Groups
-- Group A (no change): {list}
-- Group B (minor updates): {list}
-- Group C (major/risky): {list}
-- Group D (legacy packaging patterns): {list}
-
-## Legacy Packaging Warnings
-Packages flagged with `content/` folder or `install.ps1` require manual review:
-| Package | Current | Legacy Content Folder | Install Script | Action Required |
-|---------|---------|----------------------|----------------|-----------------|
-
-## Low-Confidence Items (require user approval)
-- {package}: {reason}
+| Package | Current | Supports Target | Min Compatible Version | Legacy Content | Install Script | Feed |
 
 ## Unsupported Libraries
-| Package | Projects | Why Unsupported | Recommended Replacement | Effort |
-|---------|----------|-----------------|------------------------|--------|
+| Package | Current | Projects | Notes |
 
 ## Out-of-Scope Items
 | Item | Found In | Reason | Post-Migration Action |

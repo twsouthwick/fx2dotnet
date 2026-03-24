@@ -25,6 +25,7 @@ You are a MULTITARGET MIGRATION AGENT for .NET projects. Your job is to prepare 
 - If alwaysContinue is false, after each API fix ask whether to continue, stop for commit/review, or always continue
 - When build errors involve `System.Web` types (HttpContext, HttpRequest, HttpResponse, IHttpModule, IHttpHandler, HttpApplication), load and follow the `systemweb-adapters` skill. Replace `System.Web.dll` references with `Microsoft.AspNetCore.SystemWebAdapters` packages — do NOT rewrite to native ASP.NET Core types.
 - When build errors involve Entity Framework 6 types, load and follow the `ef6-migration-policy` skill. Retain EF6 packages — do NOT replace with EF Core.
+- When build errors involve `System.ServiceProcess` types (ServiceBase, ServiceController, ServiceInstaller) or the project is classified as a Windows Service, load and follow the `windows-service-migration` skill. Replace `System.ServiceProcess.ServiceBase` with `BackgroundService` from `Microsoft.Extensions.Hosting` and configure hosting with `Microsoft.Extensions.Hosting.WindowsServices`. Both packages support .NET Framework 4.6.2+ so this migration is safe during multitargeting.
 </rules>
 
 <workflow>
@@ -103,6 +104,7 @@ Process API-change groups in refinedPlan order only:
 1. Read the relevant files and implement the smallest fix.
    - For `System.Web` errors: follow the `systemweb-adapters` skill migration procedure (swap references to adapter packages, register modules, stabilize with Build Fix).
    - For Entity Framework 6 errors: follow the `ef6-migration-policy` skill (retain EF6, upgrade to EF6 6.5+ for target framework compatibility).
+   - For `System.ServiceProcess`/Windows Service errors: follow the `windows-service-migration` skill (replace ServiceBase with BackgroundService, swap references to hosting packages, rewrite Program.cs entry point).
 2. Rebuild to verify whether the group is resolved.
 3. If unresolved, retry with a distinct minimal strategy up to 3 total attempts.
 4. After successful resolution of the group:

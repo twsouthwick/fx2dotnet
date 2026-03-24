@@ -2,7 +2,7 @@
 name: "Assessment of .NET Solution for Migration"
 description: "Gathers information about a .NET solution for migration to .NET 10. Identifies frameworks, dependencies, routes, and blockers. Classifies each project (SDK-style vs legacy, web host vs library). Resolves NuGet feeds, audits package compatibility, and produces compatibility cards. Returns the assessment report path, topological project order, project classifications, and package compatibility findings."
 tools: [microsoft.githubcopilot.appmodernization.mcp/*, swick.mcp.nugetversions/*, read, search, agent]
-agents: ['Explore', 'WebApp Project Detector']
+agents: ['Explore', 'Project Type Detector']
 argument-hint: "Required: Solution path of a .NET Project"
 ---
 
@@ -65,11 +65,11 @@ If no projects are returned or the tool errors, report the error.
 
 ### 6. Classify Each Project
 
-For each project in the topological order, invoke the **WebApp Project Detector** subagent with the project path.
+For each project in the topological order, invoke the **Project Type Detector** subagent with the project path.
 
 The subagent returns:
 - `sdkStyle` — whether the project uses SDK-style format (yes/no)
-- `classification` — `web-app-host`, `non-web-project`, or `uncertain`
+- `classification` — `web-app-host`, `windows-service`, `class-library`, `console-app`, `winforms-app`, `wpf-app`, or `uncertain`
 - `confidence` — high, medium, or low
 - `evidence` — supporting indicators
 
@@ -161,6 +161,8 @@ For each out-of-scope item detected, record:
 
 Include these in the output as a dedicated section so the migration plan does not accidentally include them as work items.
 
+**Windows Service note**: When any project is classified as `windows-service`, load the `windows-service-migration` skill. Windows Service migration is an **in-scope** migration item — record it in the project classifications, not in out-of-scope items.
+
 ## Output Format
 
 Return the assessment report path, topological project order, project classifications, and package compatibility findings:
@@ -171,9 +173,9 @@ Return the assessment report path, topological project order, project classifica
    topologicalProjects → [{ordered list of project paths}]
 
 ## Project Classifications
-| # | Project | SDK-Style | Web Host | Confidence | Evidence |
-|---|---------|-----------|----------|------------|----------|
-| 1 | {path}  | yes/no    | web-app-host / non-web-project / uncertain | high/medium/low | {summary} |
+| # | Project | SDK-Style | Classification | Confidence | Evidence |
+|---|---------|-----------|----------------|------------|----------|
+| 1 | {path}  | yes/no    | web-app-host / windows-service / class-library / console-app / winforms-app / wpf-app / uncertain | high/medium/low | {summary} |
 
 # Package Compatibility Findings
 

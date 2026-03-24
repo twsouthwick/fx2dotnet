@@ -56,6 +56,9 @@ Using the project classifications from the assessment, assign an action to each 
 - `needs-sdk-conversion` — legacy format, not a web host → SDK conversion required
 - `web-host` — web application host → skip SDK conversion, candidate for ASP.NET Core migration
 - `uncertain-web` — assessment marked as `uncertain`, flag for user confirmation
+- `windows-service` — contains `ServiceBase` or TopShelf; will need service code migration during multitarget phase (via `windows-service-migration` skill)
+
+A project can have both `needs-sdk-conversion` and `windows-service` actions.
 
 ### 3. Identify Web Migration Candidates
 
@@ -93,9 +96,9 @@ Generate a structured plan with these sections:
 - Assessment: provided inline
 
 ## Project Classifications
-| # | Project | SDK-Style | Web Host | Action |
-|---|---------|-----------|----------|--------|
-| 1 | {path}  | yes/no    | yes/no/uncertain | skip / sdk-convert / web-migrate |
+| # | Project | SDK-Style | Classification | Action |
+|---|---------|-----------|----------------|--------|
+| 1 | {path}  | yes/no    | web-app-host / windows-service / class-library / console-app / winforms-app / wpf-app / uncertain | skip / sdk-convert / web-migrate / windows-service |
 
 ## Phase 1: SDK-Style Conversion
 Projects to convert (in topological order):
@@ -130,6 +133,12 @@ Chunk 2: ...
 ## Phase 3: Multitarget Migration
 - Projects to multitarget (in topological order): {list}
 - Details to be planned separately
+
+### Windows Service Projects
+Projects containing ServiceBase or TopShelf that will undergo service code migration during multitargeting:
+- {project}: ServiceBase subclasses found: {list}
+- Migration approach: BackgroundService (via `windows-service-migration` skill)
+- Note: Both hosting packages (`Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Hosting.WindowsServices`) support .NET Framework 4.6.2+ — migration is safe during multitargeting
 
 ## Phase 4: ASP.NET Core Web Migration
 - Candidate web host(s): {project path(s)}

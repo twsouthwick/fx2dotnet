@@ -17,7 +17,7 @@
       "type": "stdio",
       "command": "dnx",
       "args": [
-        "Swick.Mcp.NuGetVersions@0.1.0-beta",
+        "Swick.Mcp.NuGetVersions@0.2.0-beta",
         "--yes",
         "--source",
         "https://api.nuget.org/v3/index.json"

@@ -1,6 +1,6 @@
 ---
 name: WebApp Project Detector
-description: "Read a project file and determine whether it is a web application host project, returning a classification with evidence."
+description: "Read a project file and determine whether it is a web application host project and whether it uses SDK-style format, returning a classification with evidence."
 argument-hint: "Specify the .csproj, .vbproj, or .fsproj path to classify"
 target: vscode
 user-invocable: false
@@ -29,6 +29,7 @@ If the selected path is not a project file, stop and ask for a valid project fil
 
 Initialize session state in /memories/session/webapp-detector-state.md with:
 - targetProjectPath
+- sdkStyle: "pending"
 - classification: "pending"
 - confidence: "pending"
 - evidence: []
@@ -36,6 +37,10 @@ Initialize session state in /memories/session/webapp-detector-state.md with:
 ## 2. Read And Extract Signals
 
 Read the project file and evaluate the following indicators.
+
+SDK-style detection:
+- SDK-style if root `<Project>` element uses `Sdk` attribute (e.g., `<Project Sdk="Microsoft.NET.Sdk">` or `<Project Sdk="Microsoft.NET.Sdk.Web">`)
+- Legacy otherwise
 
 Strong web-host indicators:
 - Project root uses Microsoft.NET.Sdk.Web
@@ -71,6 +76,7 @@ Always include confidence:
 ## 4. Report Output
 
 Return results in this format:
+- sdkStyle (yes/no)
 - classification
 - confidence
 - evidence (3 to 7 bullets)

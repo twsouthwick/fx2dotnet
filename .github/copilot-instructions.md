@@ -39,6 +39,7 @@ Pinned SDK: .NET 10 preview (see `global.json`). Output goes to `artifacts/` via
 
 ### Commits
 
+- Use conventional commits
 - Keep commit messages simple and concise — include only the required details
 - Each migration step produces a small, reviewable diff — commit granularity matters
 

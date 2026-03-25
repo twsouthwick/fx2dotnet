@@ -6,7 +6,7 @@
   "packages": [
     {
       "registryType": "nuget",
-      "identifier": "Swick.Mcp.NuGetVersions",
+      "identifier": "Swick.Mcp.Fx2dotnet",
       "version": "0.1.0-beta",
       "transport": {
         "type": "stdio"

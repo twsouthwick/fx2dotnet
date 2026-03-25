@@ -270,4 +270,4 @@ Skills encode migration best practices that override default agent behavior in s
 ### MCP Tool Servers
 
 - **Microsoft.GitHubCopilot.AppModernization.MCP** — Project analysis, SDK-style conversion, build tooling.
-- **Swick.Mcp.NuGetVersions** — Discovers minimum NuGet package versions needed for a target framework, resolves feeds, and reports legacy packaging patterns.
+- **Swick.Mcp.Fx2dotnet** — Discovers minimum NuGet package versions needed for a target framework, resolves feeds, and reports legacy packaging patterns.

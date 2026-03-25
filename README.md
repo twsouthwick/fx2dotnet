@@ -39,7 +39,7 @@ The plugin decomposes a .NET Framework → modern .NET migration into strictly o
 
 ## Migration Flow
 
-The diagram below maps the full end-to-end workflow across all phases. Each phase feeds into the next — from initial analysis through deferred post-migration work. Sub-steps are expanded within each phase to show the granular tasks. Green nodes are prep work, blue nodes are planning steps, gold nodes are committable tasks that produce code changes, lavender-shaded phases are processed in topological order (breadth-first post-order), and peach-shaded phases are applied solution-wide.
+The diagram below maps the full end-to-end workflow across all phases. Each phase feeds into the next — from initial analysis through deferred post-migration work. Sub-steps are expanded within each phase to show the granular tasks. Green nodes are prep work, blue nodes are planning steps, gold nodes are committable tasks that produce code changes, lavender-shaded phases are processed layer by layer using dependency layers (see [Dependency Layers](#dependency-layers)), and peach-shaded phases are applied solution-wide.
 
 ```mermaid
 flowchart TD
@@ -49,7 +49,7 @@ flowchart TD
 
     A --> B
 
-    %% ── SDK-Style Conversion (Breadth First Post-Order with Build-Fix) ──
+    %% ── SDK-Style Conversion (Layer by Layer with Build-Fix) ──
     subgraph SDK ["SDK-Style Projects"]
         direction LR
         SDKP([Convert Projects to SDK-Style]):::planning
@@ -58,7 +58,7 @@ flowchart TD
     end
     B --> SDK
 
-    %% ── Package Update Plan (Breadth First Post-Order Traversal) ──
+    %% ── Package Update Plan (Solution-Wide) ──
     subgraph PKG ["Package Updates"]
         direction LR
         PKGP([Identify Package Update Plan]):::planning
@@ -67,7 +67,7 @@ flowchart TD
     end
     SDK --> PKG
 
-    %% ── In-Place Upgrades per Project (Breadth First Post-Order Traversal) ──
+    %% ── In-Place Upgrades per Project (Layer by Layer) ──
     subgraph INPLACE ["Projects"]
         direction LR
 
@@ -199,7 +199,7 @@ flowchart TD
     classDef planning fill:#87CEEB,stroke:#333,color:#000
     classDef task fill:#FFD700,stroke:#333,color:#000
 
-    %% ── Topological-order phase shading ──
+    %% ── Dependency-layer phase shading ──
     style SDK fill:#C9B1E0,stroke:#6C4FA0,color:#000
     style INPLACE fill:#C9B1E0,stroke:#6C4FA0,color:#000
 
@@ -212,7 +212,7 @@ flowchart TD
         LEG1([Prep Work]):::prep
         LEG2([High-Level Planning]):::planning
         LEG3[Committable Task]:::task
-        LEG4[Topological Order\n‹breadth-first post-order›]:::topo
+        LEG4[Dependency Layers\n‹layer-by-layer›]:::topo
         LEG5[Solution-Wide]:::swide
     end
     Legend ~~~ A
@@ -220,9 +220,17 @@ flowchart TD
     classDef swide fill:#F5C78E,stroke:#B85C0A,color:#000
 ```
 
-## Breadth-First Post-Order Traversal
+## Dependency Layers
 
-Phases 3 and 5 (SDK conversion and multitargeting) process projects in **breadth-first post-order** — leaves first, then their dependents — so that every project's dependencies are already migrated before it is touched. The diagrams below illustrate this with a hypothetical solution dependency graph.
+Phases 3 and 5 (SDK conversion and multitargeting) process projects **layer by layer**. During assessment, the `ComputeDependencyLayers` tool groups the topological project list into dependency layers:
+
+- **Layer 1** — leaf projects with no in-solution dependencies.
+- **Layer 2** — projects that depend only on Layer 1 projects.
+- **Layer *N*** — projects that depend only on projects in earlier layers.
+
+All projects in a layer must complete before the next layer begins, but projects **within** the same layer are independent and can be processed in any order. This guarantees every project's dependencies are already migrated before it is touched.
+
+The diagrams below illustrate this with a hypothetical solution dependency graph.
 
 **Dependency Graph:**
 
@@ -243,18 +251,26 @@ flowchart BT
     Services --> WebApp
 ```
 
-**Processing Order (breadth-first post-order):**
+**Dependency Layers:**
 
 ```mermaid
 flowchart LR
-    step1["① Common"]
-    step2["② Logging"]
-    step3["③ Data"]
-    step4["④ Auth"]
-    step5["⑤ Services"]
-    step6["⑥ WebApp"]
+    subgraph Layer1 ["Layer 1 — leaves"]
+        Common
+        Logging
+    end
+    subgraph Layer2 ["Layer 2"]
+        Data
+        Auth
+    end
+    subgraph Layer3 ["Layer 3"]
+        Services
+    end
+    subgraph Layer4 ["Layer 4"]
+        WebApp
+    end
 
-    step1 --> step2 --> step3 --> step4 --> step5 --> step6
+    Layer1 --> Layer2 --> Layer3 --> Layer4
 ```
 
 ## Architecture

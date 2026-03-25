@@ -56,11 +56,11 @@ Each `{ProjectName}.md` file uses sections written by different agents:
 - Enforce phase order strictly; do not skip or reorder phases
 - Run assessment and planning before any migration work
 - Use the Migration Planner's project classifications to drive all subsequent phases — do not re-classify projects
-- Process projects in topological order only
+- Process projects by dependency layer (Layer 1 first, then Layer 2, etc.). Projects within the same layer are independent and can be processed in any order. Complete all projects in a layer before advancing to the next.
 - Do not run SDK-style conversion for projects the plan classifies as web hosts or already SDK-style
 - For each project the plan marks as needs-sdk-conversion, invoke SDK-Style Project Conversion agent
 - After SDK-style normalization is complete, invoke Package Compatibility Core Migration with the assessment's package compatibility plan
-- After package compatibility migration completes, invoke Multitarget Migration project-by-project in topological order
+- After package compatibility migration completes, invoke Multitarget Migration layer by layer
 - After multitarget migration completes, invoke ASP.NET Framework to ASP.NET Core Web Migration using the plan's web host candidate
 - Linux and cross-platform support is a separate concern — the goal of this migration is to get from .NET Framework to modern .NET on Windows. Do not remove `-windows` TFM suffixes, add platform-conditional code, or introduce Linux hosting packages (e.g., `Microsoft.Extensions.Hosting.Systemd`) during this migration. Cross-platform adaptation is a post-migration activity.
 - Stop and ask the user when a required input is missing, a classification is uncertain, or a decision cannot be derived safely
@@ -112,10 +112,10 @@ The subagent writes its outputs to:
 - `.fx2dotnet/{ProjectName}.md` `## Classification` section — per-project classification
 
 After the subagent completes:
-- Read `.fx2dotnet/analysis.md` to confirm it was written and contains the topological project order
+- Read `.fx2dotnet/analysis.md` to confirm it was written and contains the topological project order and dependency layers
 - Read `.fx2dotnet/package-updates.md` to confirm package compatibility findings were written
 
-If the topological project order is empty or missing from the analysis, report the error and ask user whether to retry or stop.
+If the topological project order or dependency layers are empty or missing from the analysis, report the error and ask user whether to retry or stop.
 
 Update `lastCompletedPhase: "assessment"` in `.fx2dotnet/plan.md` via the `edit` tool.
 
@@ -124,6 +124,7 @@ Update `lastCompletedPhase: "assessment"` in `.fx2dotnet/plan.md` via the `edit`
 Invoke the **Migration Planner** subagent with:
 - assessmentContent (the full text of the assessment report — read from `.fx2dotnet/analysis.md` and pass inline)
 - topologicalProjects
+- dependencyLayers (from the assessment's Dependency Layers section in `.fx2dotnet/analysis.md`)
 - solutionPath
 - targetFramework
 
@@ -138,14 +139,19 @@ Append the migration plan to `.fx2dotnet/plan.md` via the `edit` tool. If the pl
 
 Use the plan's project classifications to drive all subsequent phases — do not re-classify projects.
 
-## 4. Normalize to SDK-Style (Project by Project)
+## 4. Normalize to SDK-Style (Layer by Layer)
 
-Using the plan's Phase 1 list, for each project marked `needs-sdk-conversion`, in topological order:
-- Invoke SDK-Style Project Conversion agent with that project path (and solution context if needed)
-- Wait for completion and record result
+Using the plan's Phase 1 list organized by dependency layer, process projects layer by layer starting from Layer 1 (leaf projects):
+
+For each layer:
+- For each project in the layer marked `needs-sdk-conversion`:
+  - Invoke SDK-Style Project Conversion agent with that project path (and solution context if needed)
+  - Projects within the same layer are independent — process them in any order
+- Wait for ALL projects in the current layer to complete before moving to the next layer
 - If conversion fails for a project, stop and ask user how to proceed
+- Each completed layer is a natural checkpoint — record progress in `.fx2dotnet/plan.md`
 
-Do not proceed to phase 5 until all projects in the plan's SDK conversion list are successfully converted.
+Do not proceed to phase 5 until all layers are successfully converted.
 
 Update `lastCompletedPhase: "sdk-normalization"` in `.fx2dotnet/plan.md` via the `edit` tool.
 
@@ -165,14 +171,19 @@ If it fails or stops with unresolved blockers, ask user whether to continue, ret
 
 Update `packageCompatStatus` and `lastCompletedPhase: "package-compat"` in `.fx2dotnet/plan.md` via the `edit` tool.
 
-## 6. Run Multitarget Migration
+## 6. Run Multitarget Migration (Layer by Layer)
 
-For each project in topologicalProjects, in order:
-- Invoke Multitarget Migration agent with:
-   - project path
-   - targetFramework(s) requested by user (if unspecified, pass net10.0)
-- Wait for completion and record the result in multitargetResults
-- If a project multitarget step fails or stops with unresolved blockers, ask user whether to continue, retry, or stop
+Using the plan's Phase 3 list organized by dependency layer, process projects layer by layer starting from Layer 1:
+
+For each layer:
+- For each project in the layer:
+  - Invoke Multitarget Migration agent with:
+    - project path
+    - targetFramework(s) requested by user (if unspecified, pass net10.0)
+  - Projects within the same layer are independent — process them in any order
+- Wait for ALL projects in the current layer to complete before moving to the next layer
+- If a project fails or stops with unresolved blockers, ask user whether to continue, retry, or stop
+- Each completed layer is a natural checkpoint — record progress in `.fx2dotnet/plan.md`
 
 Update `multitargetStatus` and `lastCompletedPhase: "multitarget"` in `.fx2dotnet/plan.md` via the `edit` tool.
 

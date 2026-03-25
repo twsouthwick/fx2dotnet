@@ -26,6 +26,7 @@ You are a read-only planning agent. Your job is to consume the assessment findin
 You receive from the calling agent:
 - `assessmentContent` — the full text of the assessment report (passed inline, not as a file path)
 - `topologicalProjects` — ordered list of project paths (dependency order)
+- `dependencyLayers` — projects grouped by dependency layer (from `ComputeDependencyLayers`). Layer 1 = leaf projects with no in-solution dependencies; each subsequent layer depends only on earlier layers. Projects within the same layer are independent and can be processed in parallel.
 - `solutionPath` — path to the .sln/.slnx file
 - `targetFramework` — target framework (default: net10.0)
 
@@ -134,9 +135,16 @@ Generate a structured plan with these sections:
 | 1 | {path}  | yes/no    | web-app-host / web-library / windows-service / class-library / console-app / winforms-app / wpf-app / uncertain | skip / sdk-convert / web-migrate / windows-service |
 
 ## Phase 1: SDK-Style Conversion
-Projects to convert (in topological order, includes web-library projects):
+Projects to convert, organized by dependency layer (process layers bottom-up; projects within a layer can be processed in parallel):
+
+### Layer 1
 1. {project path} — {notes}
-2. ...
+2. {project path} — {notes}
+
+### Layer 2
+3. {project path} — {notes}
+
+...
 
 Projects skipped:
 - {project path} — already SDK-style
@@ -181,8 +189,15 @@ Packages with `content/` folder or `install.ps1` requiring manual review:
 | Package | Current | Min Compatible | Legacy Content | Install Script |
 
 ## Phase 3: Multitarget Migration
-- Projects to multitarget (in topological order): {list}
-- Details to be planned separately
+Projects to multitarget, organized by dependency layer (process layers bottom-up; projects within a layer can be processed in parallel):
+
+### Layer 1
+- {project path}
+
+### Layer 2
+- {project path}
+
+...
 
 ### Windows Service Projects
 Projects containing ServiceBase or TopShelf that will undergo service code migration during multitargeting:

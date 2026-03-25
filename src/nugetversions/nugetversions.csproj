@@ -10,8 +10,8 @@
     <PackageType>McpServer</PackageType>
 
     <!-- Set recommended package metadata -->
-    <PackageId>Swick.Mcp.NuGetVersions</PackageId>
-    <PackageVersion>0.3.0-beta</PackageVersion>
+    <PackageId>Swick.Mcp.Fx2dotnet</PackageId>
+    <PackageVersion>0.1.0-beta</PackageVersion>
     <PackageTags>AI; MCP; server; stdio</PackageTags>
     <Description>An MCP server for finding the minimum needed NuGet package</Description>
   </PropertyGroup>

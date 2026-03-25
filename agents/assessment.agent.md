@@ -95,6 +95,18 @@ After all assessment tasks are complete, call `get_projects_in_topological_order
 
 If no projects are returned or the tool errors, report the error.
 
+### 5b. Compute Dependency Layers
+
+After obtaining the topological project order, extract `<ProjectReference>` paths from each project file (using the `read` tool) to build a dependency map. For each project in the topological list, collect the `ProjectReference Include` paths and resolve them to workspace-relative paths matching the topological project list.
+
+Call `ComputeDependencyLayers` with the gathered project-dependency data:
+- Each entry: `{ projectPath: "<workspace-relative path>", dependencies: ["<dep1>", "<dep2>", ...] }`
+- Dependencies should only include projects that are in the topological project list (in-solution references)
+
+Record the returned layers. If the tool returns `UnresolvedCycles`, include them in the assessment report as a warning.
+
+Include both `topologicalProjects` and `dependencyLayers` in `.fx2dotnet/analysis.md`.
+
 ### 6. Classify Each Project
 
 For each project in the topological order, invoke the **Project Type Detector** subagent with the project path.
@@ -194,6 +206,24 @@ Return the assessment report path, topological project order, project classifica
 📄 Assessment complete:
    assessment.md → {full_path}
    topologicalProjects → [{ordered list of project paths}]
+   dependencyLayers →
+     Layer 1: [{projects with no in-solution dependencies}]
+     Layer 2: [{projects depending only on Layer 1}]
+     ...
+
+## Dependency Layers
+
+Layer 1:
+- {project path}
+- {project path}
+
+Layer 2:
+- {project path}
+
+...
+
+Unresolved/Cycles: ← omit if none
+- {project path}
 
 ## Project Classifications
 | # | Project | SDK-Style | Classification | Confidence | Evidence |

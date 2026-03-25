@@ -94,6 +94,130 @@ internal static class Tools
 
         return JsonSerializer.Serialize(result);
     }
+
+    [McpServerTool]
+    [Description("Computes dependency layers for a set of projects using iterative graph reduction. Layer 1 contains projects with no in-scope dependencies; each subsequent layer depends only on earlier layers. Returns layers as JSON. The caller is responsible for gathering the project dependency graph (e.g. via get_projects_in_topological_order or project file parsing) before invoking this tool.")]
+    public static string ComputeDependencyLayers(
+        [Description("Projects and their in-scope dependencies. Each entry has a projectPath and a list of dependency project paths that are also in this input set.")]
+        IReadOnlyList<ProjectDependencyInput> projects)
+    {
+        if (projects is null || projects.Count == 0)
+        {
+            return JsonSerializer.Serialize(new DependencyLayersResult(
+                Array.Empty<DependencyLayer>(), null, "projects is required and must contain at least one item."));
+        }
+
+        if (projects.Any(p => string.IsNullOrWhiteSpace(p.ProjectPath)))
+        {
+            return JsonSerializer.Serialize(new DependencyLayersResult(
+                Array.Empty<DependencyLayer>(), null, "Each project entry must include a non-empty projectPath."));
+        }
+
+        var result = DependencyLayerComputer.Compute(projects);
+        return JsonSerializer.Serialize(result);
+    }
+}
+
+internal static class DependencyLayerComputer
+{
+    public static DependencyLayersResult Compute(IReadOnlyList<ProjectDependencyInput> projects)
+    {
+        // Normalize all paths: lowercase + forward slashes for consistent matching.
+        static string Normalize(string path) => path.Replace('\\', '/').ToLowerInvariant();
+
+        // Build the set of known project keys.
+        var knownProjects = new HashSet<string>(StringComparer.Ordinal);
+        var originalPaths = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var p in projects)
+        {
+            var key = Normalize(p.ProjectPath);
+            knownProjects.Add(key);
+            // Keep first occurrence as the canonical display path.
+            originalPaths.TryAdd(key, p.ProjectPath);
+        }
+
+        // Build adjacency: each project maps to its in-scope dependencies.
+        var remaining = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var p in projects)
+        {
+            var key = Normalize(p.ProjectPath);
+            var deps = new HashSet<string>(StringComparer.Ordinal);
+            if (p.Dependencies is not null)
+            {
+                foreach (var dep in p.Dependencies)
+                {
+                    var depKey = Normalize(dep);
+                    // Only include dependencies that are in the input set.
+                    if (knownProjects.Contains(depKey) && depKey != key)
+                    {
+                        deps.Add(depKey);
+                    }
+                }
+            }
+
+            // If a project appears multiple times, merge dependencies.
+            if (remaining.TryGetValue(key, out var existing))
+            {
+                existing.UnionWith(deps);
+            }
+            else
+            {
+                remaining[key] = deps;
+            }
+        }
+
+        var layers = new List<DependencyLayer>();
+        var layerNumber = 0;
+
+        while (remaining.Count > 0)
+        {
+            // Find all projects with zero remaining dependencies.
+            var zeroDeps = remaining
+                .Where(kvp => kvp.Value.Count == 0)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            if (zeroDeps.Count == 0)
+            {
+                break; // Cycle detected — remaining projects form cycles.
+            }
+
+            layerNumber++;
+
+            // Sort by original path alphabetically for stable output.
+            var layerProjects = zeroDeps
+                .Select(k => originalPaths[k])
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            layers.Add(new DependencyLayer(layerNumber, layerProjects));
+
+            // Remove this layer's projects from the graph.
+            var zeroDepsSet = new HashSet<string>(zeroDeps, StringComparer.Ordinal);
+            foreach (var key in zeroDeps)
+            {
+                remaining.Remove(key);
+            }
+
+            foreach (var deps in remaining.Values)
+            {
+                deps.ExceptWith(zeroDepsSet);
+            }
+        }
+
+        // Any remaining projects are in cycles.
+        IReadOnlyList<string>? cycles = null;
+        if (remaining.Count > 0)
+        {
+            cycles = remaining.Keys
+                .Select(k => originalPaths[k])
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        return new DependencyLayersResult(layers, cycles, null);
+    }
 }
 
 internal static class NuGetPackageSupportService
@@ -645,3 +769,9 @@ internal sealed record PackageDependencyDetail(string PackageId, string? Version
 internal sealed record RemovedPackage(string PackageId, string? CurrentVersion, IReadOnlyList<string> ProvidedBy);
 
 internal sealed record MinimalPackageSetResult(IReadOnlyList<PackageVersionInput> Keep, IReadOnlyList<RemovedPackage> Removed, string? Reason);
+
+internal sealed record ProjectDependencyInput(string ProjectPath, IReadOnlyList<string>? Dependencies);
+
+internal sealed record DependencyLayer(int Layer, IReadOnlyList<string> Projects);
+
+internal sealed record DependencyLayersResult(IReadOnlyList<DependencyLayer> Layers, IReadOnlyList<string>? UnresolvedCycles, string? Error);

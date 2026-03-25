@@ -68,6 +68,32 @@ internal static class Tools
 
         return JsonSerializer.Serialize(result);
     }
+
+    [McpServerTool]
+    [Description("Given a set of NuGet packages with versions, returns the minimal subset that must remain as direct PackageReference entries. Packages that are already transitively provided by another package in the set are excluded. Use during SDK-style project conversion to prune unnecessary PackageReference entries.")]
+    public static async Task<string> GetMinimalPackageSet(
+        [Description("Optional workspace root directory used for default NuGet configuration resolution when nugetConfigPath is not provided.")]
+        string? workspaceDirectory,
+        [Description("Optional full path to a specific nuget.config file. If null or empty, default NuGet config resolution is used from workspaceDirectory.")]
+        string? nugetConfigPath,
+        [Description("The set of direct package references to evaluate. Each item should include packageId and currentVersion.")]
+        IReadOnlyList<PackageVersionInput> packages)
+    {
+        if (packages is null || packages.Count == 0)
+        {
+            return JsonSerializer.Serialize(new MinimalPackageSetResult(
+                Array.Empty<PackageVersionInput>(),
+                Array.Empty<RemovedPackage>(),
+                "packages is required and must contain at least one item."));
+        }
+
+        var result = await NuGetPackageSupportService.GetMinimalPackageSetAsync(
+            workspaceDirectory,
+            nugetConfigPath,
+            packages);
+
+        return JsonSerializer.Serialize(result);
+    }
 }
 
 internal static class NuGetPackageSupportService
@@ -403,6 +429,126 @@ internal static class NuGetPackageSupportService
             : null;
     }
 
+    private static PackageDependencyDetail[] ExtractDependenciesForModernFrameworks(IPackageSearchMetadata metadata)
+    {
+        return metadata.DependencySets
+            .Where(ds => ds.TargetFramework is not null
+                && (ds.TargetFramework == NuGetFramework.AnyFramework
+                    || GetFrameworkFamily(ds.TargetFramework.GetShortFolderName()) is not null))
+            .SelectMany(ds => ds.Packages)
+            .GroupBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new PackageDependencyDetail(g.Key, g.First().VersionRange?.ToNormalizedString()))
+            .OrderBy(d => d.PackageId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    public static async Task<MinimalPackageSetResult> GetMinimalPackageSetAsync(
+        string? workspaceDirectory,
+        string? nugetConfigPath,
+        IReadOnlyList<PackageVersionInput> packages,
+        CancellationToken cancellationToken = default)
+    {
+        var settingsResult = ResolveSettingsInputs(workspaceDirectory, nugetConfigPath);
+        if (settingsResult.Error is not null)
+        {
+            return new MinimalPackageSetResult(Array.Empty<PackageVersionInput>(), Array.Empty<RemovedPackage>(), settingsResult.Error);
+        }
+
+        var loadResult = LoadPackageSources(settingsResult.WorkspaceDirectory!, settingsResult.NuGetConfigPath);
+        if (loadResult.Error is not null)
+        {
+            return new MinimalPackageSetResult(Array.Empty<PackageVersionInput>(), Array.Empty<RemovedPackage>(), loadResult.Error);
+        }
+
+        var sources = loadResult.Sources;
+        if (sources.Count == 0)
+        {
+            return new MinimalPackageSetResult(Array.Empty<PackageVersionInput>(), Array.Empty<RemovedPackage>(), "No enabled NuGet package sources were found.");
+        }
+
+        // Build a lookup of all input package IDs for fast membership checks.
+        var inputIds = new HashSet<string>(packages.Select(p => p.PackageId), StringComparer.OrdinalIgnoreCase);
+
+        // For each package, resolve its dependencies and see which other input packages it pulls in.
+        var providedBy = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var packageVersionMap = new Dictionary<string, NuGet.Versioning.NuGetVersion>(StringComparer.OrdinalIgnoreCase);
+
+        using var cache = new SourceCacheContext();
+
+        foreach (var package in packages)
+        {
+            if (!TryParseNuGetVersion(package.CurrentVersion, out var version))
+                continue;
+
+            packageVersionMap[package.PackageId] = version;
+
+            PackageDependencyDetail[]? deps = null;
+            foreach (var source in sources)
+            {
+                try
+                {
+                    var repository = new SourceRepository(source, Providers);
+                    var metadataResource = await repository.GetResourceAsync<PackageMetadataResource>(cancellationToken);
+                    var metadata = await metadataResource.GetMetadataAsync(
+                        package.PackageId,
+                        includePrerelease: true,
+                        includeUnlisted: true,
+                        cache,
+                        NullLogger.Instance,
+                        cancellationToken);
+
+                    var match = metadata.FirstOrDefault(m => m.Identity.Version == version);
+                    if (match is not null)
+                    {
+                        deps = ExtractDependenciesForModernFrameworks(match);
+                        break;
+                    }
+                }
+                catch
+                {
+                    continue;
+                }
+            }
+
+            if (deps is null)
+                continue;
+
+            foreach (var dep in deps)
+            {
+                if (inputIds.Contains(dep.PackageId))
+                {
+                    if (!providedBy.TryGetValue(dep.PackageId, out var providers))
+                    {
+                        providers = new List<string>();
+                        providedBy[dep.PackageId] = providers;
+                    }
+                    providers.Add(package.PackageId);
+                }
+            }
+        }
+
+        // A package is redundant if it is transitively provided by at least one other input package.
+        var removed = new List<RemovedPackage>();
+        var redundantIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (packageId, providers) in providedBy)
+        {
+            redundantIds.Add(packageId);
+            removed.Add(new RemovedPackage(
+                packageId,
+                packages.First(p => string.Equals(p.PackageId, packageId, StringComparison.OrdinalIgnoreCase)).CurrentVersion,
+                providers.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray()));
+        }
+
+        var kept = packages
+            .Where(p => !redundantIds.Contains(p.PackageId))
+            .ToArray();
+
+        return new MinimalPackageSetResult(
+            kept,
+            removed.OrderBy(r => r.PackageId, StringComparer.OrdinalIgnoreCase).ToArray(),
+            null);
+    }
+
     private sealed record SourceCandidate(NuGet.Versioning.NuGetVersion Version, string[] Supports, string[] SupportFamilies, string Feed);
 
     private sealed record SettingsResolution(string? WorkspaceDirectory, string? NuGetConfigPath, string? Error);
@@ -493,3 +639,9 @@ internal sealed record PackageSupportResult(
     IReadOnlyList<string> SupportFamilies,
     string? Feed,
     string? Reason);
+
+internal sealed record PackageDependencyDetail(string PackageId, string? VersionRange);
+
+internal sealed record RemovedPackage(string PackageId, string? CurrentVersion, IReadOnlyList<string> ProvidedBy);
+
+internal sealed record MinimalPackageSetResult(IReadOnlyList<PackageVersionInput> Keep, IReadOnlyList<RemovedPackage> Removed, string? Reason);

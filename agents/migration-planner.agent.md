@@ -19,6 +19,7 @@ You are a read-only planning agent. Your job is to consume the assessment findin
 - DO NOT plan multitargeting specifics — that phase will be planned separately later
 - Ground all sequencing decisions in the assessment's compatibility cards and groups — do NOT re-analyze NuGet metadata
 - Delegate codebase searches to the **Explore** subagent when needed
+- All project paths in the plan MUST be relative to the solution directory — never use absolute paths
 
 ## Inputs
 
@@ -100,7 +101,7 @@ This step covers only packages that have a compatible version available. Package
 
 Using the compatibility cards from the assessment, build an ordered update plan:
 
-1. Exclude packages whose current version already supports the target (marked `Supports Target: yes`)
+1. List every package whose current version already supports the target (marked `Supports Target: yes`) — these require NO changes and must appear in the "Packages Already Compatible" table in the plan output so reviewers can confirm nothing was missed
 2. Exclude packages already resolved as unsupported in step 4
 3. From the remaining packages, classify each update by risk:
    - Minor updates: the minimum compatible version is a patch or minor bump from the current version
@@ -163,10 +164,14 @@ Every out-of-scope item MUST have both a rationale and a concrete post-migration
 - **Pre-Migration Prep**: Any prep work to do NOW during migration (e.g., extract interface, add abstraction layer). Use "none" if nothing is needed.
 - **Post-Migration Action**: Specific next step after migration completes (e.g., "Migrate from EF6 to EF Core 10 — see ef6-migration-policy skill")
 
-### Chunked Update Plan
+### Packages Already Compatible (no update needed)
+These packages already support the target framework at their current version — no changes required.
+| Package | Current Version |
+|---------|----------------|
+| {packageId} | {currentVersion} |
 
-Packages already compatible (no update needed): {list}
-Packages requiring update (only those that need a newer version for target framework support): {list}
+### Chunked Update Plan
+Packages requiring update (only those that need a newer version for target framework support):
 
 Chunk 1: {package list with current → min compatible versions}
 Chunk 2: ...

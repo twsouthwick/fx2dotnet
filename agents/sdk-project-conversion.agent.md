@@ -3,7 +3,7 @@ name: SDK-Style Project Conversion
 description: "Convert a legacy project file to SDK-style format using the convert_project_to_sdk_style tool, then invoke Build Fix to resolve any compilation errors until the project builds successfully."
 argument-hint: "Specify the .sln, .csproj, .vbproj, or .fsproj file to convert to SDK-style format"
 target: vscode
-tools: [vscode/askQuestions, read, agent, microsoft.githubcopilot.appmodernization.mcp/convert_project_to_sdk_style, edit, search, todo]
+tools: [vscode/askQuestions, read, agent, microsoft.githubcopilot.appmodernization.mcp/convert_project_to_sdk_style, swick.mcp.nugetversions/GetMinimalPackageSet, edit, search, todo]
 agents: ['Build Fix']
 handoffs:
   - label: Commit Changes
@@ -117,7 +117,20 @@ Once conversion is verified, invoke the Build Fix agent to run a build-fix loop:
 Before delegating, update the `## SDK Conversion` section via the `edit` tool:
 - `buildStatus`: "delegated-to-build-fix"
 
-## 6. Wrap Up
+## 6. Prune Redundant Package References
+
+After the initial build-fix pass succeeds, use the `GetMinimalPackageSet` tool to determine which `<PackageReference>` entries are redundant. SDK-style projects resolve transitive dependencies automatically, so references that are already pulled in by another direct reference can be safely removed.
+
+1. Read the converted project file's `<PackageReference>` items (package ID + version)
+2. Call `GetMinimalPackageSet` with the full list and the workspace/NuGet config context
+3. The tool returns `Keep` (packages that must remain) and `Removed` (packages that are transitively provided, with the parent that provides them)
+4. If `Removed` is empty, skip to step 7
+5. For each package in `Removed`, remove the `<PackageReference>` from the project file using the `edit` tool
+6. If using Central Package Management (`Directory.Packages.props`), also check whether the corresponding `<PackageVersion>` entry is still needed by other projects before removing it
+7. Invoke the **Build Fix** agent again, passing it the list of removed packages with the instruction: "These transitive package references were removed — if a build error is caused by a missing type or namespace from one of these packages, re-add that specific `<PackageReference>` rather than looking for other fixes."
+8. Record which references were pruned (and any that were re-added by Build Fix) in the `## SDK Conversion` state section
+
+## 7. Wrap Up
 
 After Build Fix completes (or user stops the build-fix loop):
 - Update the `## SDK Conversion` section via the `edit` tool with final `buildStatus`: "build-success" or "build-incomplete" or "user-stopped"

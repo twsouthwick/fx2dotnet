@@ -5,3 +5,6 @@ artifacts/
 *.user
 *.suo
 .vs/
+
+# Auto-generated solution files
+fx2dotnet-plugin.sln

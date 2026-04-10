@@ -48,9 +48,11 @@ msbuild <solution-path> /p:Configuration=Debug
 .\Start-IISExpress.ps1
 ```
 
+The script launches IIS Express as a detached process and returns immediately after confirming the site is listening.
+
 ### 5. Verify
 
-Open a browser or use `curl` to confirm the site is running at the URL discovered in step 2:
+The script performs a basic readiness check automatically. To further verify, use `curl` in the same terminal:
 
 ```powershell
 curl http://localhost:<port>/
@@ -78,7 +80,8 @@ The template script is at [`references/Start-IISExpress.template.ps1`](reference
 - Copying the IIS Express `applicationhost.config` template from `C:\Program Files\IIS Express\config\templates\PersonalWebServer\applicationhost.config`
 - Patching the default `WebSite1` site entry with the target project's name, physical path, port, and `Clr4IntegratedAppPool`
 - Writing the config to `.vs\config\applicationhost.config` relative to the solution root
-- Launching IIS Express with the patched config
+- Launching IIS Express as a detached process (returns immediately)
+- Polling until the site is accepting connections
 
 ## Troubleshooting
 

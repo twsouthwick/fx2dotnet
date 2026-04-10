@@ -93,5 +93,28 @@ Write-Host "URL:               http://localhost:$sitePort/"
 Write-Host ""
 Write-Host "Launching IIS Express..."
 
-# Launch
-& $iisExpressExe /config:"$configPath" /site:"$siteName"
+# Launch detached so the script returns immediately
+$proc = Start-Process -FilePath $iisExpressExe `
+    -ArgumentList "/config:`"$configPath`" /site:`"$siteName`"" `
+    -PassThru
+
+Write-Host "IIS Express started (PID $($proc.Id)). Waiting for it to accept connections..."
+
+# Give IIS Express a moment to start listening
+$ready = $false
+for ($i = 0; $i -lt 10; $i++) {
+    Start-Sleep -Milliseconds 500
+    try {
+        $null = Invoke-WebRequest -Uri "http://localhost:$sitePort/" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+        $ready = $true
+        break
+    } catch {
+        # not ready yet
+    }
+}
+
+if ($ready) {
+    Write-Host "IIS Express is listening on http://localhost:$sitePort/"
+} else {
+    Write-Host "WARNING: IIS Express may not be ready yet — check http://localhost:$sitePort/ manually."
+}

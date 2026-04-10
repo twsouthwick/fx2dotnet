@@ -98,7 +98,7 @@ When creating or reviewing a skill, evaluate it against the checklist below. Ref
 - [ ] Progressive disclosure used — details in separate files if needed
 - [ ] File references are one level deep (no chains of references)
 - [ ] Workflows have clear, numbered steps
-- [ ] No Windows-style paths (use forward slashes)
+- [ ] Repo-relative paths and links use forward slashes; OS-specific absolute paths are allowed when required
 - [ ] Long-running processes (servers, watchers) use background terminal pattern — see [long-running-processes.md](long-running-processes.md)
 
 #### Actionability

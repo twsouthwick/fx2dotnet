@@ -4,9 +4,9 @@
 .DESCRIPTION
     Copies the IIS Express template applicationhost.config, patches the site
     configuration to point at the target project on the discovered port, stops
-    any existing IIS Express instance, and launches the new one.
+    any IIS Express instance running with the same config, and launches the new one.
 .PARAMETER Stop
-    If specified, stops any running IIS Express process and exits.
+    If specified, stops the IIS Express process for this site and exits.
 .NOTES
     This script is generated from a template. Customize the variables below
     for the target project before running.
@@ -26,11 +26,16 @@ $webProjectPath = "{{WEB_PROJECT_PATH}}"    # absolute path to the folder contai
 $solutionRoot   = "{{SOLUTION_ROOT}}"       # absolute path to the solution root
 # ============================================================
 
-# Stop any existing IIS Express
-$existing = Get-Process iisexpress -ErrorAction SilentlyContinue
+# Resolve paths (needed before stop check)
+$configDir      = Join-Path $solutionRoot ".vs\config"
+$configPath     = Join-Path $configDir "applicationhost.config"
+
+# Stop only the IIS Express instance running with this config
+$existing = Get-CimInstance Win32_Process -Filter "Name = 'iisexpress.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -and $_.CommandLine -like "*/config:*$configPath*" }
 if ($existing) {
-    Write-Host "Stopping existing IIS Express process(es)..."
-    $existing | Stop-Process -Force
+    Write-Host "Stopping IIS Express for site '$siteName'..."
+    $existing | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
     Start-Sleep -Seconds 1
 }
 
@@ -39,9 +44,6 @@ if ($Stop) {
     return
 }
 
-# Resolve paths
-$configDir      = Join-Path $solutionRoot ".vs\config"
-$configPath     = Join-Path $configDir "applicationhost.config"
 $iisExpressExe  = "C:\Program Files\IIS Express\iisexpress.exe"
 $templatePath   = "C:\Program Files\IIS Express\config\templates\PersonalWebServer\applicationhost.config"
 

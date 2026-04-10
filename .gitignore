@@ -5,3 +5,7 @@ artifacts/
 *.user
 *.suo
 .vs/
+
+# Auto-generated solution files (C# Dev Kit / workspace plugin)
+# Real solution is *.slnx — ignore all legacy .sln files
+*.sln

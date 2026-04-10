@@ -11,7 +11,7 @@ Recommend the right customization type for a user's intent by applying the decis
 
 Walk through these questions in order. Stop at the first "yes."
 
-1. **Is this a rule that should ALWAYS apply?** → Instructions (`.instructions.md` or `copilot-instructions.md`)
+1. **Is this a rule that should ALWAYS apply?** → Instructions (`.github/copilot-instructions.md` or `.github/instructions/*.instructions.md`)
 2. **Is this a repeatable recipe the user will invoke by name?** → Prompt file (`.prompt.md`)
 3. **Is this a capability that any agent should be able to use?** → Skill (`SKILL.md`)
 4. **Does it need its own identity, persona, or tool set?** → Agent (`.agent.md`)

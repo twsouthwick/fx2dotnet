@@ -117,7 +117,6 @@ tools:                        # optional: restrict available tools
   - read_file
   - grep_search
   - run_in_terminal
-model: 'claude-sonnet-4'     # optional: override default model
 agents:                       # optional: restrict which sub-agents I can call
   - implementer
   - tester
@@ -238,6 +237,7 @@ Hooks         → the enforcement (deterministic automation)
 | Skills | `.github/skills/` | `.claude/skills/` |
 | Agents | `.github/agents/*.agent.md` | `.claude/agents/*.md` |
 | Hooks | `.github/hooks/*.json` | `.claude/settings.json` |
+| Model override | Not supported | `model:` in agent frontmatter |
 
 The mental model is portable. `SKILL.md` is even the same file format across both ecosystems.
 

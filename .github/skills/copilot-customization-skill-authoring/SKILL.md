@@ -11,6 +11,8 @@ Create, review, and improve skill files following established best practices.
 
 Best practices guide: `.github/skills/copilot-customization-skill-authoring/agent-skills-best-practices.md`
 
+> This is an external reference adapted from Anthropic's Claude skill-authoring docs. It uses Claude-specific terminology but the principles apply to Copilot skills. Where it says "Claude", read "the agent".
+
 Read this file before creating or reviewing any skill. Key principles:
 
 - **Concise is key** — only add context the agent doesn't already have

@@ -1,10 +1,12 @@
 # Skill authoring best practices
 
-Learn how to write effective Skills that Claude can discover and use successfully.
+> **External reference**: This document is adapted from [Anthropic's Claude skill-authoring guide](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/best-practices). It uses Claude-specific terminology (model names, reserved-word constraints) but the core principles — conciseness, progressive disclosure, discovery via description — apply equally to GitHub Copilot custom agents and skills. Where the text says "Claude", read "the agent".
+
+Learn how to write effective Skills that an agent can discover and use successfully.
 
 ---
 
-Good Skills are concise, well-structured, and tested with real usage. This guide provides practical authoring decisions to help you write Skills that Claude can discover and use effectively.
+Good Skills are concise, well-structured, and tested with real usage. This guide provides practical authoring decisions to help you write Skills that an agent can discover and use effectively.
 
 For conceptual background on how Skills work, see the [Skills overview](/docs/en/agents-and-tools/agent-skills/overview).
 

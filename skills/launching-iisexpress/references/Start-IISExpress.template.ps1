@@ -58,36 +58,24 @@ if (-not (Test-Path $templatePath)) {
     throw "IIS Express template not found at: $templatePath"
 }
 
-# Copy template and patch site config
+# Copy template and patch site config via XML
 Write-Host "Preparing applicationhost.config..."
 New-Item -ItemType Directory -Path $configDir -Force | Out-Null
-$config = Get-Content $templatePath -Raw
+Copy-Item $templatePath $configPath -Force
 
-# Replace the default site with the target project site
-$defaultSite = @'
-            <site name="WebSite1" id="1" serverAutoStart="true">
-                <application path="/">
-                    <virtualDirectory path="/" physicalPath="%IIS_SITES_HOME%\WebSite1" />
-                </application>
-                <bindings>
-                    <binding protocol="http" bindingInformation=":8080:localhost" />
-                </bindings>
-            </site>
-'@
+$xml = [xml](Get-Content $configPath -Raw)
+$site = $xml.SelectSingleNode("//site[@name='WebSite1']")
+if (-not $site) {
+    throw "Could not find the default 'WebSite1' site in the IIS Express template config."
+}
 
-$targetSite = @"
-            <site name="$siteName" id="1" serverAutoStart="true">
-                <application path="/" applicationPool="Clr4IntegratedAppPool">
-                    <virtualDirectory path="/" physicalPath="$webProjectPath" />
-                </application>
-                <bindings>
-                    <binding protocol="http" bindingInformation="*:${sitePort}:localhost" />
-                </bindings>
-            </site>
-"@
+$site.SetAttribute("name", $siteName)
+$app = $site.SelectSingleNode("application")
+$app.SetAttribute("applicationPool", "Clr4IntegratedAppPool")
+$app.SelectSingleNode("virtualDirectory").SetAttribute("physicalPath", $webProjectPath)
+$site.SelectSingleNode("bindings/binding").SetAttribute("bindingInformation", "*:${sitePort}:localhost")
 
-$config = $config -replace [regex]::Escape($defaultSite), $targetSite
-Set-Content $configPath $config -Encoding UTF8
+$xml.Save($configPath)
 
 Write-Host "Config written to: $configPath"
 Write-Host "Physical path:     $webProjectPath"

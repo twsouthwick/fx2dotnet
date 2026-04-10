@@ -6,7 +6,7 @@ GitHub Copilot agent plugin that orchestrates .NET Framework → modern .NET mig
 
 ## Architecture
 
-- **Orchestrator**: `agents/dotnet-fx-to-modern-dotnet.md` drives the 7-phase migration flow
+- **Orchestrator**: `agents/dotnet-fx-to-modern-dotnet.agent.md` drives the 7-phase migration flow
 - **Phase agents** (in `agents/`): Assessment → Planning → SDK Conversion → Package Compat → Multitarget → Web Migration, with Build Fix called throughout
 - **Skills** (in `skills/`): Domain policies (EF6 retention, System.Web adapters, Windows Service migration) — these override default behavior in specific migration domains
 - **MCP servers** (configured in `.mcp.json`): `Microsoft.GitHubCopilot.AppModernization.Mcp` for project analysis/SDK conversion, `Swick.Mcp.Fx2dotnet` for NuGet package compatibility data

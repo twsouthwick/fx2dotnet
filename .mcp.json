@@ -4,10 +4,9 @@
       "type": "stdio",
       "command": "dnx",
       "args": [
-        "Microsoft.GitHubCopilot.AppModernization.Mcp@1.0.903-preview1",
+        "Microsoft.GitHubCopilot.Modernization.Mcp",
         "--yes",
-        "--source",
-        "https://api.nuget.org/v3/index.json"
+        "--prerelease"
       ],
       "tools": [
         "*"

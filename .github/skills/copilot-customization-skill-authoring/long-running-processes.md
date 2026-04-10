@@ -11,7 +11,6 @@ Skills that launch servers, file watchers, or any process that runs indefinitely
 
 ## Example
 
-```markdown
 ### Launch the server
 
 **IMPORTANT**: Launch as a **background process** so the terminal stays available.
@@ -29,7 +28,6 @@ curl http://localhost:6001/swagger
 ### Stop the server
 
 Use `kill_terminal` with the saved terminal ID.
-```
 
 ## Why this matters
 

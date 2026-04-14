@@ -1,17 +1,21 @@
 ﻿using fx2dotnet;
 using GitHub.Copilot.SDK;
-using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel;
+using System.Text;
 
 if (!(args is [{ } slnPath] && File.Exists(slnPath)))
 {
     Console.WriteLine("Usage: fx2dotnet [path to solution]");
     return;
 }
+
+var solutionFullPath = Path.GetFullPath(slnPath);
+var solutionDirectory = Path.GetDirectoryName(solutionFullPath)!;
+var planPath = Path.Combine(solutionDirectory, "modernization-plan.md");
 
 var loggerFactory = LoggerFactory.Create(builder =>
 {
@@ -65,11 +69,14 @@ var mcpTools = new Dictionary<string, object>()
     }
 };
 
+var commonTools = Tools.GetCommon(planPath).ToArray();
+
 var agent = client.AsAIAgent(new SessionConfig
 {
     OnPermissionRequest = PermissionHandler.ApproveAll,
     SessionId = sessionId,
     Model = "claude-opus-4.6",
+    SkillDirectories = [Path.Combine(AppContext.BaseDirectory, "Resources", "skills")],
     //Model = "claude-sonnet-4.6",
     //ReasoningEffort = "xhigh",
     SystemMessage = new()
@@ -78,15 +85,15 @@ var agent = client.AsAIAgent(new SessionConfig
         Mode = SystemMessageMode.Append,
     },
     Tools = [
-        .. Tools.Common.Select(c=>c.Function),
+        .. commonTools.Select(c => c.Function),
         AIFunctionFactory.Create(NuGetTools.FindRecommendedPackageUpgrades),
      ],
     McpServers = mcpTools,
     CustomAgents = [
-        Agents.GetCustomAgentConfig("assessment.agent.md", mcpTools, Tools.Common),
-        Agents.GetCustomAgentConfig("package-compat-core.agent.md", mcpTools, Tools.Common),
-        Agents.GetCustomAgentConfig("plan.agent.md", mcpTools, Tools.Common),
-        Agents.GetCustomAgentConfig("webapp-project-detector.agent.md", mcpTools, Tools.Common),
+        Agents.GetCustomAgentConfig("assessment.agent.md", mcpTools, commonTools),
+        Agents.GetCustomAgentConfig("package-compat-core.agent.md", mcpTools, commonTools),
+        Agents.GetCustomAgentConfig("plan.agent.md", mcpTools, commonTools),
+        Agents.GetCustomAgentConfig("webapp-project-detector.agent.md", mcpTools, commonTools),
         ]
 
 });
@@ -94,16 +101,27 @@ var agent = client.AsAIAgent(new SessionConfig
 var session = await agent.CreateSessionAsync();
 
 var messages = $"""
-    Create a plan for {slnPath}
+    Create the complete modernization plan for {solutionFullPath}.
+    Save the working plan with WritePlan whenever you have a usable draft, and make sure the final plan is persisted.
+    Return the full plan content in your final response.
+    Do not ask whether to proceed, execute, or adjust priorities.
     """;
 
+var finalResponse = new StringBuilder();
 
 await foreach (var result in agent.RunStreamingAsync(messages, session))
 {
     if (!string.IsNullOrEmpty(result.Text))
     {
         Console.Write(result.Text);
+        finalResponse.Append(result.Text);
     }
+}
+
+if (finalResponse.Length > 0)
+{
+    File.WriteAllText(planPath, finalResponse.ToString());
+    Console.WriteLine($"{Environment.NewLine}{Environment.NewLine}Plan saved to: {planPath}");
 }
 
 public interface ICommonTool
@@ -146,11 +164,13 @@ class Agents
 
 class Tools
 {
-    public static IEnumerable<ICommonTool> Common =>
+    public static IEnumerable<ICommonTool> GetCommon(string planPath) =>
     [
         new StatusImpl(),
         new QuestionImpl(),
         new ReadImpl(),
+        new WritePlanImpl(planPath),
+        new GetPlanImpl(planPath),
     ];
 
     private class ReadImpl : ICommonTool
@@ -179,6 +199,46 @@ class Tools
             }
         }
     }
+
+    private sealed class WritePlanImpl(string planPath) : ICommonTool
+    {
+        public string Prompt => $"""
+            Use the WritePlan tool whenever you have a usable modernization plan draft so the plan is persisted to {planPath}.
+            Use the GetPlan tool to retrieve the current saved plan before revising it.
+            """;
+
+        public AIFunction Function => AIFunctionFactory.Create(WritePlan);
+
+        [Description("Writes the current modernization plan markdown to the shared plan file")]
+        public string WritePlan([Description("The full markdown content of the modernization plan")] string markdown)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(planPath)!);
+            File.WriteAllText(planPath, markdown);
+            Console.WriteLine($"Plan written to: {planPath}");
+            return $"Plan saved to {planPath}";
+        }
+    }
+
+    private sealed class GetPlanImpl(string planPath) : ICommonTool
+    {
+        public string Prompt => string.Empty;
+
+        public AIFunction Function => AIFunctionFactory.Create(GetPlan);
+
+        [Description("Gets the current contents of the saved modernization plan file")]
+        public string GetPlan()
+        {
+            if (!File.Exists(planPath))
+            {
+                Console.WriteLine($"No plan file exists yet at: {planPath}");
+                return "No plan has been written yet.";
+            }
+
+            Console.WriteLine($"Reading plan from: {planPath}");
+            return File.ReadAllText(planPath);
+        }
+    }
+
     private class StatusImpl : ICommonTool
     {
         public string Prompt => """

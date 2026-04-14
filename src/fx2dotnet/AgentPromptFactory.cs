@@ -29,8 +29,9 @@ namespace fx2dotnet
 
                 using var stream = file.CreateReadStream();
                 using var reader = new StreamReader(stream);
-                
-                _instructions = new ChatMessage(ChatRole.System, reader.ReadToEnd());
+
+                var prompt = AgentPromptParser.Parse(reader.ReadToEnd());
+                _instructions = new ChatMessage(ChatRole.System, prompt.Body);
             }
 
             protected override async ValueTask<AgentSession> CreateSessionCoreAsync(CancellationToken cancellationToken = default)

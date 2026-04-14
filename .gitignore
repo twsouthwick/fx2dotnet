@@ -4,3 +4,4 @@ artifacts/
 # User-specific files
 *.user
 *.suo
+/.vs

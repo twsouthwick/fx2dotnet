@@ -2,7 +2,6 @@
 name: "Legacy Web Route Inventory"
 description: "Extract a route and endpoint inventory from a legacy ASP.NET web project by scanning controllers, routing configuration, auth attributes, and request or response contracts. Use when: inventory Web API 2 endpoints, map legacy ASP.NET routes before migration, list controller actions and route templates, capture auth requirements for a System.Web host."
 tools: [agent, read]
-user-invocable: false
 agents: ["Explore"]
 argument-hint: "Legacy web project path or web project folder"
 ---

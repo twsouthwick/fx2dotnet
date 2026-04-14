@@ -1,3 +1,10 @@
 <Solution>
-  <Project Path="src/nugetversions/nugetversions.csproj" />
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="GitVersion.yml" />
+    <File Path="global.json" />
+  </Folder>
+  <Project Path="src/fx2dotnet/fx2dotnet.csproj" />
 </Solution>

@@ -1,37 +1,13 @@
-
-
-
-using System.ComponentModel;
-using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Frameworks;
-using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
-
-var builder = Host.CreateApplicationBuilder(args);
-
-// Keep stdout clean for MCP stdio JSON-RPC traffic.
-builder.Logging.ClearProviders();
-
-builder.Services
-	.AddMcpServer()
-	.WithStdioServerTransport()
-	.WithToolsFromAssembly();
-
-using var host = builder.Build();
-await host.RunAsync();
-
-// ============================================================================
-// MCP Server Tool Definitions
-// ============================================================================
+using System.ComponentModel;
+using System.Text.Json;
 
 [McpServerToolType]
-internal static class Tools
+internal static class NuGetTools
 {
     [McpServerTool]
     [Description("Takes a list of NuGet packages with current versions and returns the subset recommended for upgrade to meet minimum .NET Core/.NET or .NET Standard support.")]

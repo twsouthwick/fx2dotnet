@@ -8,13 +8,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GitHub.Copilot.SDK" Version="0.1.32" />
-    <PackageReference Include="Microsoft.Agents.AI.Declarative" Version="1.0.0-rc4" />
-    <PackageReference Include="Microsoft.Agents.AI.GitHub.Copilot" Version="1.0.0-preview.260311.1" />
-    <PackageReference Include="Microsoft.Agents.AI.Workflows" Version="1.0.0-rc4" />
+    <PackageReference Include="GitHub.Copilot.SDK" Version="0.2.2" />
+    <PackageReference Include="Microsoft.Agents.AI.Declarative" Version="1.1.0-rc1" />
+    <PackageReference Include="Microsoft.Agents.AI.GitHub.Copilot" Version="1.1.0-preview.260410.1" />
+    <PackageReference Include="Microsoft.Agents.AI.Workflows" Version="1.1.0" />
     <PackageReference Include="Microsoft.Extensions.FileProviders.Abstractions" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
+    <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
+    <PackageReference Include="YamlDotNet" Version="17.0.1" />
+	  <PackageReference Include="NuGet.Frameworks" Version="6.14.0" />
+	  <PackageReference Include="NuGet.Protocol" Version="6.14.0" />
   </ItemGroup>
 
   <ItemGroup>

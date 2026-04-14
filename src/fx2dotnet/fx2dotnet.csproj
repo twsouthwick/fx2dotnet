@@ -25,4 +25,10 @@
     <EmbeddedResource Include="Resources\agents\*.md" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Resources\skills\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

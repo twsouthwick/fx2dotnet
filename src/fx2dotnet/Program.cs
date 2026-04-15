@@ -7,9 +7,13 @@ using Microsoft.Extensions.Logging;
 using System.ComponentModel;
 using System.Text;
 
-if (!(args is [{ } slnPath] && File.Exists(slnPath)))
+var refreshPlan = args.Any(static a => string.Equals(a, "--refresh", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(a, "--refresh-plan", StringComparison.OrdinalIgnoreCase));
+var slnPath = args.FirstOrDefault(static a => !a.StartsWith("--", StringComparison.Ordinal));
+
+if (string.IsNullOrWhiteSpace(slnPath) || !File.Exists(slnPath))
 {
-    Console.WriteLine("Usage: fx2dotnet [path to solution]");
+    Console.WriteLine("Usage: fx2dotnet [path to solution] [--refresh]");
     return;
 }
 
@@ -71,7 +75,30 @@ var mcpTools = new Dictionary<string, object>()
 
 var commonTools = Tools.GetCommon(planPath).ToArray();
 
-var agent = client.AsAIAgent(new SessionConfig
+var backlogAgent = Agents.GetCustomAgentConfig("github-modernization-backlog.agent.md", [], commonTools);
+var ghAgent = client.AsAIAgent(new SessionConfig()
+{
+    OnPermissionRequest = PermissionHandler.ApproveAll,
+    Agent = backlogAgent.Name,
+    CustomAgents = [backlogAgent],
+    Tools = [.. commonTools.Select(t => t.Function)],
+    McpServers = new()
+    {
+        ["github"] = new McpRemoteServerConfig()
+        {
+            Type = "http",
+            Url = "https://api.githubcopilot.com/mcp/",
+            Headers = new()
+            {
+                ["Authorization"] = "Bearer ${TOKEN}"
+            },
+            Tools = ["*"],
+        }
+    }
+}, name: "GitHub Issue Manager");
+
+var fxdotnet = Agents.GetCustomAgentConfig("dotnet-fx-to-modern-dotnet.md", mcpTools, commonTools);
+var planAgent = client.AsAIAgent(new SessionConfig
 {
     OnPermissionRequest = PermissionHandler.ApproveAll,
     SessionId = sessionId,
@@ -79,49 +106,46 @@ var agent = client.AsAIAgent(new SessionConfig
     SkillDirectories = [Path.Combine(AppContext.BaseDirectory, "Resources", "skills")],
     //Model = "claude-sonnet-4.6",
     //ReasoningEffort = "xhigh",
-    SystemMessage = new()
-    {
-        Content = Agents.GetAgent("dotnet-fx-to-modern-dotnet.md"),
-        Mode = SystemMessageMode.Append,
-    },
+    Agent = fxdotnet.Name,
     Tools = [
         .. commonTools.Select(c => c.Function),
         AIFunctionFactory.Create(NuGetTools.FindRecommendedPackageUpgrades),
      ],
     McpServers = mcpTools,
     CustomAgents = [
+        fxdotnet,
         Agents.GetCustomAgentConfig("assessment.agent.md", mcpTools, commonTools),
         Agents.GetCustomAgentConfig("package-compat-core.agent.md", mcpTools, commonTools),
         Agents.GetCustomAgentConfig("plan.agent.md", mcpTools, commonTools),
         Agents.GetCustomAgentConfig("webapp-project-detector.agent.md", mcpTools, commonTools),
-        ]
+        Agents.GetCustomAgentConfig("github-modernization-backlog.agent.md", mcpTools, commonTools),
+    ]
+}, name: ".NET Upgrade Planner");
 
-});
+var session = await planAgent.CreateSessionAsync();
 
-var session = await agent.CreateSessionAsync();
-
-var messages = $"""
-    Create the complete modernization plan for {solutionFullPath}.
+var agent1 = (planAgent, $"""
+    If a saved modernization plan already exists for {solutionFullPath}, use that plan as-is and do not refresh or regenerate it unless the caller explicitly requested --refresh.
+    Otherwise, create the complete modernization plan for {solutionFullPath}.
     Save the working plan with WritePlan whenever you have a usable draft, and make sure the final plan is persisted.
     Return the full plan content in your final response.
     Do not ask whether to proceed, execute, or adjust priorities.
-    """;
+    """);
+var agent2 = (ghAgent, $"Verify issues exist for the upgrade using the saved plan for {solutionFullPath}. If any do not exist, create them and if they do exist make sure they're up-to-date. BE VERY VERBOSE with what you're doing.");
 
-var finalResponse = new StringBuilder();
-
-await foreach (var result in agent.RunStreamingAsync(messages, session))
+foreach (var agent in new[] { agent1, agent2 })
 {
-    if (!string.IsNullOrEmpty(result.Text))
+    Console.WriteLine();
+    Console.WriteLine($"--------------------- {agent.Item1.Name} ----------------");
+    Console.WriteLine();
+
+    await foreach (var result in agent.Item1.RunStreamingAsync(agent.Item2, session))
     {
-        Console.Write(result.Text);
-        finalResponse.Append(result.Text);
+        if (!string.IsNullOrEmpty(result.Text))
+        {
+            Console.Write(result.Text);
+        }
     }
-}
-
-if (finalResponse.Length > 0)
-{
-    File.WriteAllText(planPath, finalResponse.ToString());
-    Console.WriteLine($"{Environment.NewLine}{Environment.NewLine}Plan saved to: {planPath}");
 }
 
 public interface ICommonTool
@@ -169,6 +193,7 @@ class Tools
         new StatusImpl(),
         new QuestionImpl(),
         new ReadImpl(),
+        new PlanExistsImpl(planPath),
         new WritePlanImpl(planPath),
         new GetPlanImpl(planPath),
     ];
@@ -219,9 +244,27 @@ class Tools
         }
     }
 
+    private sealed class PlanExistsImpl(string planPath) : ICommonTool
+    {
+        public string Prompt => """
+            If you need to know if the plan is available use CheckIfPlanExists.
+            """;
+
+        public AIFunction Function => AIFunctionFactory.Create(CheckIfPlanExists);
+
+        [Description("Checks if the plan exists")]
+        public string CheckIfPlanExists()
+        {
+            return File.Exists(planPath) ? "Plan exists" : "Plan does not exist";
+        }
+    }
+
+
     private sealed class GetPlanImpl(string planPath) : ICommonTool
     {
-        public string Prompt => string.Empty;
+        public string Prompt => """
+            If GetPlan returns an existing plan and the user did not ask to refresh or revise it, do not echo, summarize, or restate the plan contents. Report only that a saved plan already exists.
+            """;
 
         public AIFunction Function => AIFunctionFactory.Create(GetPlan);
 

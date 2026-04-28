@@ -1,0 +1,10 @@
+{
+    "name": "fx2dotnet",
+    "plugins": [
+        {
+            "name": "fx2dotnet-modernization",
+            "source": "./plugins/fx2dotnet-modernization",
+            "description": "Agent plugin for .NET modernization workflows, including orchestrator and migration helpers."
+        }
+    ]
+}

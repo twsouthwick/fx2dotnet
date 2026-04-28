@@ -4,7 +4,7 @@ description: Runs a dotnet build/fix loop — builds the project, diagnoses erro
 argument-hint: Specify the .sln, .csproj, .vbproj, or .fsproj file to build
 target: vscode
 user-invocable: false
-tools: ['search', 'read', 'edit', 'todo', 'vscode/askQuestions', 'agent']
+tools: ['search', 'read', 'edit', 'todo', 'vscode/askQuestions', 'agent', 'execute']
 agents: ['Explore', 'agent']
 handoffs:
   - label: Commit Changes

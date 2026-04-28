@@ -4,7 +4,7 @@ description: "Orchestrates end-to-end modernization flow: run assessment, create
  and ASP.NET Framework to ASP.NET Core web migration."
 argument-hint: "Specify the .sln/.slnx path and optional target framework (default: net10.0)"
 target: vscode
-tools: [vscode/askQuestions, read, agent, edit, search, todo]
+tools: [vscode/askQuestions, read, agent, edit, search, todo, execute]
 agents: ['Assessment of .NET Solution for Migration', 'Migration Planner', 'SDK-Style Project Conversion', 'Package Compatibility Core Migration', 'Multitarget Migration', 'ASP.NET Framework to ASP.NET Core Web Migration', 'Explore']
 handoffs:
   - label: Commit Changes

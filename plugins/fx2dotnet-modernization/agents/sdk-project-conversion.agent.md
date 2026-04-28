@@ -3,7 +3,7 @@ name: SDK-Style Project Conversion
 description: "Convert a legacy project file to SDK-style format using the convert_project_to_sdk_style tool, then invoke Build Fix to resolve any compilation errors until the project builds successfully."
 argument-hint: "Specify the .sln, .csproj, .vbproj, or .fsproj file to convert to SDK-style format"
 target: vscode
-tools: [vscode/askQuestions, read, agent, microsoft.githubcopilot.appmodernization.mcp/convert_project_to_sdk_style, Swick.Mcp.Fx2dotnet/GetMinimalPackageSet, edit, search, todo]
+tools: [vscode/askQuestions, read, agent, microsoft.githubcopilot.appmodernization.mcp/convert_project_to_sdk_style, Swick.Mcp.Fx2dotnet/GetMinimalPackageSet, edit, search, todo, execute]
 agents: ['Build Fix']
 handoffs:
   - label: Commit Changes

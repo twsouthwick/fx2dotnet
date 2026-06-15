@@ -98,6 +98,8 @@ var ghAgent = client.AsAIAgent(new SessionConfig()
 }, name: "GitHub Issue Manager");
 
 var fxdotnet = Agents.GetCustomAgentConfig("dotnet-fx-to-modern-dotnet.md", mcpTools, commonTools);
+
+
 var planAgent = client.AsAIAgent(new SessionConfig
 {
     OnPermissionRequest = PermissionHandler.ApproveAll,
